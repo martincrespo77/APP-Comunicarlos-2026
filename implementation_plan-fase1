@@ -1,0 +1,515 @@
+# Fase 1 — Diseño del Dominio: Mesa de Ayuda Comunicarlos
+
+## 1. Resumen del enfoque de modelado
+
+El modelo parte exclusivamente del **negocio** de una mesa de ayuda, sin dejarse contaminar por persistencia, HTTP ni frameworks. Se identifican los actores, los objetos que fluyen entre ellos y las reglas que gobiernan esas interacciones.
+
+La raíz de agregado es `Requerimiento`: concentra estado, historial, asignación y comentarios. Los usuarios (actores) viven fuera del agregado y se referencian por identidad. Se privilegian clases con **comportamiento real** (métodos que validan invariantes) por sobre DTOs inertes.
+
+**Patrón arquitectónico futuro:** Router → Service → Repository. En esta fase solo se diseña la capa de **Dominio** (entidades, VOs, enums, reglas). El Service orquestará; el Repository persistirá; el Router expondrá. Nada de eso existe todavía.
+
+---
+
+## 2. Supuestos explícitos
+
+| # | Supuesto | Justificación |
+|---|----------|---------------|
+| S1 | Un requerimiento tiene **exactamente un técnico asignado** en cada momento (o ninguno si está pendiente). | Enunciado literal. |
+| S2 | La **derivación** (interconsulta) reemplaza al técnico asignado. El técnico anterior queda registrado en el historial de eventos, no en un campo activo. | Simplifica la invariante "un único técnico" y el enunciado dice "derivar a otro técnico". |
+| S3 | Solo un **operador** o **técnico** puede reabrir un requerimiento resuelto, y lo hace mediante un **comentario**. | Enunciado: "un requerimiento resuelto puede reabrirse mediante comentario de operador o técnico". |
+| S4 | Los **supervisores** no modifican requerimientos; solo observan y reciben notificaciones. | Enunciado literal. |
+| S5 | Los **comentarios** son inmutables: una vez creados, no se editan ni eliminan. | "Comentarios y eventos deben ser inmutables y auditables". |
+| S6 | Los **eventos** forman un log de auditoría append-only dentro del requerimiento. | Misma regla de inmutabilidad. |
+| S7 | La **urgencia** es un atributo exclusivo de `Incidente`, no de `Solicitud`. | Enunciado: "Las solicitudes no tienen urgencia". |
+| S8 | Los estados válidos son: `ABIERTO`, `ASIGNADO`, `EN_PROGRESO`, `RESUELTO`, `CERRADO`. Se agrega `EN_PROGRESO` para diferenciar el momento en que el técnico comienza a trabajar activamente. | Decisión de diseño razonable. Si la cátedra no lo exige, puede eliminarse sin romper el modelo. |
+| S9 | `CERRADO` es un estado terminal al que solo llega un requerimiento `RESUELTO` por acción de un operador. No se puede reabrir un requerimiento cerrado. | Distinción entre "resuelto" (confirmar puede reabrirse) y "cerrado" (final). |
+| S10 | Los roles de usuario (`SOLICITANTE`, `OPERADOR`, `TECNICO`, `SUPERVISOR`) pertenecen al dominio de usuarios, no al de requerimientos. El requerimiento solo almacena **referencias** (IDs) a los actores. | Separación de bounded contexts. |
+
+---
+
+## 3. Entidades del dominio
+
+### 3.1 `Requerimiento` (clase base abstracta, raíz de agregado)
+
+**Responsabilidad:** Representar un pedido de ayuda, encapsular su ciclo de vida completo y proteger todas las invariantes de negocio.
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| `id` | `str` (UUID) | Identificador único |
+| `titulo` | `str` | Descripción breve |
+| `descripcion` | `str` | Detalle del pedido |
+| `estado` | `EstadoRequerimiento` | Estado actual |
+| `solicitante_id` | `str` | Quién creó el requerimiento |
+| `operador_id` | `str \| None` | Operador que gestionó la asignación |
+| `tecnico_asignado_id` | `str \| None` | Técnico actualmente responsable |
+| `categoria` | (definido en subclases) | Clasificación del requerimiento |
+| `comentarios` | `list[Comentario]` | Lista inmutable-append de comentarios |
+| `eventos` | `list[Evento]` | Log de auditoría append-only |
+| `fecha_creacion` | `datetime` | Timestamp de creación |
+| `fecha_actualizacion` | `datetime` | Último cambio de estado |
+
+**Comportamiento clave (métodos):**
+
+- `asignar_tecnico(tecnico_id, operador_id)` → valida estado, registra evento.
+- `resolver(tecnico_id)` → valida que el técnico sea el asignado, cambia estado, registra evento.
+- `derivar(tecnico_origen_id, tecnico_destino_id, motivo)` → valida que tecnico_origen sea el asignado, reasigna, registra evento de derivación.
+- `agregar_comentario(autor_id, rol_autor, contenido)` → crea `Comentario`, si el estado es `RESUELTO` y el rol es operador o técnico → reabre (cambia estado a `ABIERTO`), registra evento.
+- `cerrar(operador_id)` → solo desde `RESUELTO`, registra evento.
+- `iniciar_trabajo(tecnico_id)` → solo desde `ASIGNADO`, transiciona a `EN_PROGRESO`.
+- `_registrar_evento(tipo, actor_id, detalle)` → método interno para construir y agregar un `Evento`.
+
+### 3.2 `Incidente` (hereda de `Requerimiento`)
+
+| Atributo extra | Tipo | Descripción |
+|----------------|------|-------------|
+| `urgencia` | `Urgencia` | Nivel de urgencia (BAJA, MEDIA, ALTA, CRITICA) |
+| `categoria` | `CategoriaIncidente` | Clasificación de incidente |
+
+### 3.3 `Solicitud` (hereda de `Requerimiento`)
+
+| Atributo extra | Tipo | Descripción |
+|----------------|------|-------------|
+| `categoria` | `CategoriaSolicitud` | Clasificación de solicitud |
+
+> [!NOTE]
+> Se usa herencia simple con ABC en `Requerimiento` porque `Incidente` y `Solicitud` tienen atributos estructuralmente distintos (`urgencia` vs. no-urgencia). No es herencia por capricho: resuelve un polimorfismo real del negocio.
+
+---
+
+### 3.4 `Usuario` (entidad de soporte, bounded context separado)
+
+En esta fase solo se define la interfaz mínima necesaria para que el dominio de requerimientos pueda **referenciar** actores. No se desarrolla el bounded context de usuarios completo.
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| `id` | `str` | UUID |
+| `nombre` | `str` | Nombre completo |
+| `email` | `str` | Correo |
+| `rol` | `RolUsuario` | Rol en el sistema |
+| `activo` | `bool` | Si puede operar |
+
+---
+
+## 4. Objetos de valor (Value Objects)
+
+### 4.1 `Comentario`
+
+Inmutable. Pertenece al agregado `Requerimiento`.
+
+| Campo | Tipo |
+|-------|------|
+| `id` | `str` (UUID) |
+| `autor_id` | `str` |
+| `rol_autor` | `RolUsuario` |
+| `contenido` | `str` |
+| `fecha` | `datetime` |
+
+**Inmutabilidad:** Se implementa con `__init__` + propiedades de solo lectura (o `__slots__` + sin setters). Una vez creado, no se modifica.
+
+### 4.2 `Evento`
+
+Inmutable. Registro de auditoría.
+
+| Campo | Tipo |
+|-------|------|
+| `id` | `str` (UUID) |
+| `tipo` | `TipoEvento` |
+| `actor_id` | `str` |
+| `detalle` | `str` |
+| `fecha` | `datetime` |
+
+### 4.3 `Derivacion` (VO embebido en evento)
+
+Opcionalmente puede ser un campo adicional dentro de `Evento` cuando `tipo == DERIVACION`, o modelarse como subtipo. Se recomienda mantenerlo como **detalle estructurado dentro de Evento** para simplicidad:
+
+```
+detalle = "Derivado de {tecnico_origen} a {tecnico_destino}. Motivo: {motivo}"
+```
+
+> [!TIP]
+> No se crea una clase `Derivacion` separada a menos que la cátedra lo exija explícitamente. El evento de tipo `DERIVACION` con detalle descriptivo cumple la auditoría sin agregar complejidad innecesaria.
+
+---
+
+## 5. Enums
+
+```python
+class EstadoRequerimiento(Enum):
+    ABIERTO = "abierto"
+    ASIGNADO = "asignado"
+    EN_PROGRESO = "en_progreso"
+    RESUELTO = "resuelto"
+    CERRADO = "cerrado"
+
+class TipoRequerimiento(Enum):
+    INCIDENTE = "incidente"
+    SOLICITUD = "solicitud"
+
+class Urgencia(Enum):
+    BAJA = "baja"
+    MEDIA = "media"
+    ALTA = "alta"
+    CRITICA = "critica"
+
+class CategoriaIncidente(Enum):
+    HARDWARE = "hardware"
+    SOFTWARE = "software"
+    RED = "red"
+    SEGURIDAD = "seguridad"
+    OTRO = "otro"
+
+class CategoriaSolicitud(Enum):
+    ALTA_SERVICIO = "alta_servicio"
+    BAJA_SERVICIO = "baja_servicio"
+    MODIFICACION = "modificacion"
+    CONSULTA = "consulta"
+    OTRO = "otro"
+
+class RolUsuario(Enum):
+    SOLICITANTE = "solicitante"
+    OPERADOR = "operador"
+    TECNICO = "tecnico"
+    SUPERVISOR = "supervisor"
+
+class TipoEvento(Enum):
+    CREACION = "creacion"
+    ASIGNACION = "asignacion"
+    REASIGNACION = "reasignacion"
+    DERIVACION = "derivacion"
+    INICIO_TRABAJO = "inicio_trabajo"
+    COMENTARIO = "comentario"
+    RESOLUCION = "resolucion"
+    REAPERTURA = "reapertura"
+    CIERRE = "cierre"
+```
+
+---
+
+## 6. Agregados y raíz de agregado
+
+### Agregado `Requerimiento`
+
+```
+Requerimiento (raíz)
+├── Comentario[]    (VO, solo se agregan, no se eliminan)
+└── Evento[]        (VO, solo se agregan, no se eliminan)
+```
+
+**Justificación:** `Comentario` y `Evento` no tienen identidad global independiente. Solo existen dentro del contexto de un `Requerimiento`. Toda operación sobre ellos pasa por la raíz.
+
+### Agregado `Usuario`
+
+```
+Usuario (raíz)
+```
+
+Entidad simple. En esta fase no tiene sub-objetos relevantes.
+
+> [!IMPORTANT]
+> **Regla de agregado:** nunca se modifica un `Comentario` o un `Evento` directamente. Todo pasa por los métodos de `Requerimiento`.
+
+---
+
+## 7. Reglas de negocio e invariantes
+
+### Transiciones de estado válidas
+
+```
+ABIERTO ──────→ ASIGNADO ────→ EN_PROGRESO ────→ RESUELTO ────→ CERRADO
+                    ↑               ↑                │
+                    │               │                │
+                    └───────────────┴── REAPERTURA ──┘
+                                       (vuelve a ABIERTO)
+```
+
+| # | Regla | Método que la protege |
+|---|-------|-----------------------|
+| R1 | Solo se puede asignar técnico a un requerimiento en estado `ABIERTO`. | `asignar_tecnico()` |
+| R2 | Solo el técnico **actualmente asignado** puede resolver el requerimiento. | `resolver()` |
+| R3 | Solo el técnico **actualmente asignado** puede derivar a otro técnico. | `derivar()` |
+| R4 | La derivación cambia el `tecnico_asignado_id` y registra un evento `DERIVACION`. | `derivar()` |
+| R5 | Un comentario de operador o técnico sobre un requerimiento `RESUELTO` lo **reabre** automáticamente (estado → `ABIERTO`). | `agregar_comentario()` |
+| R6 | Un solicitante puede comentar sus propios requerimientos pero esto **no** reabre. | `agregar_comentario()` |
+| R7 | Un requerimiento `CERRADO` **no** puede reabrirse ni modificarse. | Todos los métodos verifican `!= CERRADO` |
+| R8 | Solo un operador puede cerrar un requerimiento, y solo desde `RESUELTO`. | `cerrar()` |
+| R9 | `Incidente` **debe tener** urgencia al momento de la creación. `Solicitud` **no tiene** urgencia. | Constructor de `Incidente` / `Solicitud` |
+| R10 | Cada evento y comentario es **inmutable** una vez creado. | VOs sin setters |
+| R11 | El `tecnico_asignado_id` es **nullable** solo cuando el estado es `ABIERTO`. En cualquier otro estado activo debe haber exactamente un técnico. | `asignar_tecnico()`, `derivar()` |
+| R12 | Un técnico solo puede iniciar trabajo (`EN_PROGRESO`) si el requerimiento está `ASIGNADO` a él. | `iniciar_trabajo()` |
+
+### Invariantes principales
+
+1. **Un requerimiento tiene a lo sumo un técnico asignado** en todo momento.
+2. **Los comentarios y eventos son append-only** — nunca se eliminan ni modifican.
+3. **El estado siempre sigue las transiciones válidas** — no se puede saltar estados.
+4. **Un incidente siempre tiene urgencia; una solicitud nunca.**
+
+---
+
+## 8. Patrones de diseño aplicados y por qué
+
+### 8.1 Observer — Notificaciones a supervisores
+
+**Se aplica.** Los supervisores deben recibir notificaciones automáticas ante eventos relevantes (asignación, resolución, reapertura, derivación).
+
+**Diseño:**
+
+```python
+from abc import ABC, abstractmethod
+
+class ObservadorRequerimiento(ABC):
+    """Interfaz para observadores de eventos de requerimiento."""
+    
+    @abstractmethod
+    def notificar(self, evento: Evento, requerimiento_id: str) -> None:
+        ...
+
+class NotificadorSupervisor(ObservadorRequerimiento):
+    """Implementación concreta que notifica supervisores."""
+    
+    def notificar(self, evento: Evento, requerimiento_id: str) -> None:
+        # En Fase 2, el Service inyectará este observador.
+        # Aquí solo se define la interfaz del dominio.
+        ...
+```
+
+**Justificación:** El patrón desacopla la lógica de negocio (transiciones de estado) de los efectos secundarios (notificaciones). El `Requerimiento` no necesita conocer quién observa — eso lo orquesta el Service.
+
+> [!IMPORTANT]
+> El `Requerimiento` **no** mantiene internamente la lista de observadores. Los métodos de negocio **devuelven los eventos generados**, y es el **Service** quien los despacha a los observadores registrados. Esto mantiene el dominio puro (sin side-effects de I/O).
+
+### 8.2 Factory Method — Creación de Incidentes y Solicitudes
+
+**Se aplica, de forma simple.** Un método de clase (`crear_incidente`, `crear_solicitud`) en la clase base o como función factory encapsula:
+- La validación de que `urgencia` solo exista en incidentes.
+- La generación del evento `CREACION` automáticamente.
+- La asignación del estado inicial `ABIERTO`.
+
+```python
+class RequerimientoFactory:
+    @staticmethod
+    def crear_incidente(titulo, descripcion, solicitante_id, urgencia, categoria) -> Incidente:
+        ...
+
+    @staticmethod
+    def crear_solicitud(titulo, descripcion, solicitante_id, categoria) -> Solicitud:
+        ...
+```
+
+**Justificación:** Evita que el código cliente tenga que recordar reglas de inicialización (estado inicial, evento de creación, validación de urgencia). Simple y defendible.
+
+### 8.3 Strategy — Políticas de priorización/asignación
+
+**No se aplica en esta fase.** El enunciado no menciona políticas de asignación automática ni algoritmos de priorización intercambiables. Si en el futuro se agrega "asignar automáticamente al técnico con menos carga", se puede introducir Strategy. Por ahora sería sobreingeniería.
+
+---
+
+## 9. Riesgos o puntos discutibles del modelo
+
+| # | Punto | Riesgo | Mitigación |
+|---|-------|--------|------------|
+| 1 | Estado `EN_PROGRESO` | La cátedra podría no pedirlo. | Eliminable sin romper el modelo. Preguntá al profesor. |
+| 2 | Estado `CERRADO` vs solo `RESUELTO` | Si solo existe `RESUELTO`, la reapertura siempre es posible. | `CERRADO` da un punto final claro. Justificar con "confirmación de cierre por operador". |
+| 3 | Observer implementado en Service vs en Dominio | Si el profe quiere ver Observer "puro" en la entidad, hay que mover la lista de observadores al `Requerimiento`. | Tener ambas versiones preparadas. La versión actual (Service orquesta) es más limpia arquitectónicamente. |
+| 4 | Derivación como reasignación | ¿La derivación implica resetear estado a `ASIGNADO`? | Se recomienda que sí: derivar → estado vuelve a `ASIGNADO` para que el nuevo técnico inicie su ciclo. |
+| 5 | `Comentario` y `Evento` como VOs con `id` | Estrictamente, un VO no tiene identidad. Pero necesitan `id` para referenciabilidad en la API. | Son VOs dentro del agregado (no se buscan independientemente), pero tienen un `id` técnico para serialización. Justificable. |
+| 6 | `RolUsuario` en el dominio de requerimientos | Genera acoplamiento entre bounded contexts. | Solo se usa como enum de referencia. El dominio de requerimientos no gestiona usuarios, solo lee el rol del actor. |
+
+---
+
+## 10. Diagrama de clases en Mermaid
+
+```mermaid
+classDiagram
+    direction TB
+
+    class EstadoRequerimiento {
+        <<enumeration>>
+        ABIERTO
+        ASIGNADO
+        EN_PROGRESO
+        RESUELTO
+        CERRADO
+    }
+
+    class TipoRequerimiento {
+        <<enumeration>>
+        INCIDENTE
+        SOLICITUD
+    }
+
+    class Urgencia {
+        <<enumeration>>
+        BAJA
+        MEDIA
+        ALTA
+        CRITICA
+    }
+
+    class CategoriaIncidente {
+        <<enumeration>>
+        HARDWARE
+        SOFTWARE
+        RED
+        SEGURIDAD
+        OTRO
+    }
+
+    class CategoriaSolicitud {
+        <<enumeration>>
+        ALTA_SERVICIO
+        BAJA_SERVICIO
+        MODIFICACION
+        CONSULTA
+        OTRO
+    }
+
+    class RolUsuario {
+        <<enumeration>>
+        SOLICITANTE
+        OPERADOR
+        TECNICO
+        SUPERVISOR
+    }
+
+    class TipoEvento {
+        <<enumeration>>
+        CREACION
+        ASIGNACION
+        REASIGNACION
+        DERIVACION
+        INICIO_TRABAJO
+        COMENTARIO
+        RESOLUCION
+        REAPERTURA
+        CIERRE
+    }
+
+    class Comentario {
+        <<value object>>
+        +str id
+        +str autor_id
+        +RolUsuario rol_autor
+        +str contenido
+        +datetime fecha
+    }
+
+    class Evento {
+        <<value object>>
+        +str id
+        +TipoEvento tipo
+        +str actor_id
+        +str detalle
+        +datetime fecha
+    }
+
+    class Requerimiento {
+        <<abstract>>
+        +str id
+        +str titulo
+        +str descripcion
+        +EstadoRequerimiento estado
+        +str solicitante_id
+        +str? operador_id
+        +str? tecnico_asignado_id
+        +list~Comentario~ comentarios
+        +list~Evento~ eventos
+        +datetime fecha_creacion
+        +datetime fecha_actualizacion
+        +asignar_tecnico(tecnico_id, operador_id)
+        +resolver(tecnico_id)
+        +derivar(tecnico_origen_id, tecnico_destino_id, motivo)
+        +agregar_comentario(autor_id, rol_autor, contenido)
+        +cerrar(operador_id)
+        +iniciar_trabajo(tecnico_id)
+    }
+
+    class Incidente {
+        +Urgencia urgencia
+        +CategoriaIncidente categoria
+    }
+
+    class Solicitud {
+        +CategoriaSolicitud categoria
+    }
+
+    class RequerimientoFactory {
+        <<factory>>
+        +crear_incidente(...)$ Incidente
+        +crear_solicitud(...)$ Solicitud
+    }
+
+    class ObservadorRequerimiento {
+        <<interface>>
+        +notificar(evento, requerimiento_id)*
+    }
+
+    class NotificadorSupervisor {
+        +notificar(evento, requerimiento_id)
+    }
+
+    class Usuario {
+        +str id
+        +str nombre
+        +str email
+        +RolUsuario rol
+        +bool activo
+    }
+
+    Requerimiento <|-- Incidente
+    Requerimiento <|-- Solicitud
+    Requerimiento *-- Comentario : contiene
+    Requerimiento *-- Evento : contiene
+    Requerimiento --> EstadoRequerimiento : usa
+    Incidente --> Urgencia : tiene
+    Incidente --> CategoriaIncidente : tiene
+    Solicitud --> CategoriaSolicitud : tiene
+    Comentario --> RolUsuario : referencia
+    Evento --> TipoEvento : usa
+    RequerimientoFactory ..> Incidente : crea
+    RequerimientoFactory ..> Solicitud : crea
+    ObservadorRequerimiento <|.. NotificadorSupervisor : implementa
+    ObservadorRequerimiento ..> Evento : recibe
+    Usuario --> RolUsuario : tiene
+```
+
+---
+
+## 11. Checklist de validación antes de Fase 2
+
+- [ ] ¿Cada método de `Requerimiento` protege al menos una invariante?
+- [ ] ¿`Incidente` y `Solicitud` son la única forma de instanciar requerimientos (vía Factory)?
+- [ ] ¿Los comentarios y eventos son inmutables (sin setters, sin delete)?
+- [ ] ¿El diagrama de transiciones de estado es consistente con los métodos?
+- [ ] ¿El Observer se ejecuta fuera de la entidad (orquestado por Service)?
+- [ ] ¿No hay imports de FastAPI, Pydantic ni motor/pymongo en el dominio?
+- [ ] ¿No hay lógica de autenticación/autorización dentro de las entidades?
+- [ ] ¿Los nombres están en español?
+- [ ] ¿Se puede defender cada clase oralmente sin recurrir a "es un patrón conocido"?
+- [ ] ¿Se puede explicar por qué Strategy **no** se usa?
+- [ ] ¿Los enums cubren todos los valores mencionados en el enunciado?
+- [ ] ¿La derivación queda auditada como evento?
+
+---
+
+## 12. Dudas residuales
+
+1. **¿El estado `EN_PROGRESO` es requerido por la cátedra o es opcional?** — Si no lo piden, se elimina y `ASIGNADO` → `RESUELTO` directamente.
+2. **¿El estado `CERRADO` existe en el enunciado o solo hay `RESUELTO`?** — Si solo hay `RESUELTO`, toda reapertura queda habilitada indefinidamente.
+3. **¿Las categorías de incidente y solicitud son las listadas o la cátedra provee otras?** — Los enums actuales son supuestos razonables.
+4. **¿El Observer debe vivir dentro de la entidad (patrón "puro") o el Service puede mediar?** — Depende de la exigencia del profesor sobre dónde "se ve" el patrón.
+
+---
+
+## Verificación (Fase 1)
+
+Esta fase es **exclusivamente de diseño** — no hay código ejecutable todavía. La verificación consiste en:
+
+### Revisión manual
+- El usuario revisa este documento contra el enunciado y el STYLEGUIDE_PROFE.
+- Se confirma que cada regla de negocio tiene un método responsable.
+- Se valida el diagrama Mermaid renderizado.
+
+### Pre-validación para Fase 2
+- Una vez aprobado este diseño, en Fase 2 se escribirán los archivos `dominio/*.py` y los tests unitarios correspondientes.
+- Cada método de la entidad `Requerimiento` será testeable de forma pura (sin mocks de I/O).

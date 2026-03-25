@@ -45,7 +45,7 @@ def _usuario(**kwargs) -> Usuario:
     defaults: dict = dict(
         id="usr-001",
         nombre="Ana García",
-        email="ana@test.com",
+        email="ana@comunicarlos.com.ar",
         rol=RolUsuario.OPERADOR,
         password_hash="$2b$12$fakehashXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
         activo=True,
@@ -120,7 +120,7 @@ class TestRepositorioUsuarioSQL(unittest.TestCase):
         self.assertIsNotNone(recuperado)
         self.assertEqual(recuperado.id, "usr-001")
         self.assertEqual(recuperado.nombre, "Ana García")
-        self.assertEqual(recuperado.email, "ana@test.com")
+        self.assertEqual(recuperado.email, "ana@comunicarlos.com.ar")
         self.assertEqual(recuperado.rol, RolUsuario.OPERADOR)
         self.assertTrue(recuperado.activo)
 
@@ -131,23 +131,23 @@ class TestRepositorioUsuarioSQL(unittest.TestCase):
     # ── obtener por email ────────────────────────────────────────────────────
 
     def test_obtener_por_email_existente(self):
-        self.repo.guardar(_usuario(id="usr-e1", email="otro@test.com"))
+        self.repo.guardar(_usuario(id="usr-e1", email="otro@comunicarlos.com.ar"))
 
-        resultado = self.repo.obtener_por_email("otro@test.com")
+        resultado = self.repo.obtener_por_email("otro@comunicarlos.com.ar")
 
         self.assertIsNotNone(resultado)
         self.assertEqual(resultado.id, "usr-e1")
 
     def test_obtener_por_email_inexistente_retorna_none(self):
-        resultado = self.repo.obtener_por_email("noexiste@test.com")
+        resultado = self.repo.obtener_por_email("noexiste@comunicarlos.com.ar")
         self.assertIsNone(resultado)
 
     # ── listar ───────────────────────────────────────────────────────────────
 
     def test_listar_retorna_todos_los_usuarios(self):
-        self.repo.guardar(_usuario(id="u1", email="u1@test.com"))
-        self.repo.guardar(_usuario(id="u2", email="u2@test.com"))
-        self.repo.guardar(_usuario(id="u3", email="u3@test.com"))
+        self.repo.guardar(_usuario(id="u1", email="u1@comunicarlos.com.ar"))
+        self.repo.guardar(_usuario(id="u2", email="u2@comunicarlos.com.ar"))
+        self.repo.guardar(_usuario(id="u3", email="u3@comunicarlos.com.ar"))
 
         todos = self.repo.listar()
 

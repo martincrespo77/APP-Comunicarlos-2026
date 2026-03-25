@@ -2,13 +2,6 @@
 
 Define la entidad Usuario.  El enum RolUsuario se importa
 del shared kernel (``app.compartido.dominio``).
-
-Nota sobre email corporativo:
-    El TP exige que operadores y técnicos usen correo corporativo.
-    La política concreta (ej. dominio @comunicarlos.com) se aplica
-    en la capa de servicio o mediante un Value Object EmailCorporativo
-    cuando se defina el dominio de la empresa.  El dominio valida
-    únicamente que el email tenga formato mínimo reconocible.
 """
 
 from __future__ import annotations
@@ -16,6 +9,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.compartido.dominio import RolUsuario
+
+_DOMINIO_CORPORATIVO = "@comunicarlos.com.ar"
+_ROLES_CORPORATIVOS = frozenset({RolUsuario.OPERADOR, RolUsuario.TECNICO})
 
 
 class Usuario:
@@ -47,6 +43,11 @@ class Usuario:
             raise ValueError("El email del usuario no puede estar vacío.")
         if "@" not in email:
             raise ValueError("El email del usuario debe contener '@'.")
+        if rol in _ROLES_CORPORATIVOS and not email.strip().endswith(_DOMINIO_CORPORATIVO):
+            raise ValueError(
+                f"Los usuarios con rol '{rol.value}' deben usar correo corporativo "
+                f"(*{_DOMINIO_CORPORATIVO})."
+            )
         if not password_hash or not password_hash.strip():
             raise ValueError("El password_hash no puede estar vacío.")
 

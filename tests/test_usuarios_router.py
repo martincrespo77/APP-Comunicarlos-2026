@@ -67,7 +67,7 @@ _SUPERVISOR_ACTUAL = UsuarioActual(id="sys", rol=RolUsuario.SUPERVISOR)
 
 _BODY_ANA = {
     "nombre": "Ana López",
-    "email": "ana@empresa.com",
+    "email": "ana@comunicarlos.com.ar",
     "rol": "tecnico",
     "password": "secreto123",
 }
@@ -133,6 +133,24 @@ class TestRegistrarUsuario(_BaseUsuarioTest):
         resp = self.client.post("/usuarios/", json=body)
         self.assertEqual(resp.status_code, 422)
 
+    def test_operador_con_email_no_corporativo_retorna_422(self):
+        """El dominio rechaza email no corporativo para rol OPERADOR."""
+        body = {**_BODY_ANA, "email": "operador@gmail.com", "rol": "operador"}
+        resp = self.client.post("/usuarios/", json=body)
+        self.assertEqual(resp.status_code, 422)
+
+    def test_tecnico_con_email_no_corporativo_retorna_422(self):
+        """El dominio rechaza email no corporativo para rol TECNICO."""
+        body = {**_BODY_ANA, "email": "tecnico@empresa.com", "rol": "tecnico"}
+        resp = self.client.post("/usuarios/", json=body)
+        self.assertEqual(resp.status_code, 422)
+
+    def test_solicitante_puede_registrarse_con_email_libre(self):
+        """SOLICITANTE no tiene restricción de dominio."""
+        body = {**_BODY_ANA, "email": "sol@gmail.com", "rol": "solicitante"}
+        resp = self.client.post("/usuarios/", json=body)
+        self.assertEqual(resp.status_code, 201)
+
 
 # ═══════════════════════════════════════════════════════════
 #  POST /usuarios/autenticar — Autenticar
@@ -145,7 +163,7 @@ class TestAutenticarUsuario(_BaseUsuarioTest):
         super().setUp()
         self._registrar()   # precondición: usuario registrado
 
-    def _autenticar(self, email: str = "ana@empresa.com", pw: str = "secreto123"):
+    def _autenticar(self, email: str = "ana@comunicarlos.com.ar", pw: str = "secreto123"):
         return self.client.post("/usuarios/autenticar", json={"email": email, "password": pw})
 
     def test_credenciales_correctas_retornan_200(self):
@@ -168,7 +186,7 @@ class TestAutenticarUsuario(_BaseUsuarioTest):
             self.assertNotIn(campo_sensible, data)
 
     def test_email_inexistente_retorna_401(self):
-        resp = self._autenticar(email="noexiste@empresa.com")
+        resp = self._autenticar(email="noexiste@comunicarlos.com.ar")
         self.assertEqual(resp.status_code, 401)
 
     def test_password_incorrecto_retorna_401(self):
@@ -236,7 +254,7 @@ class TestObtenerUsuario(_BaseUsuarioTest):
         resp = self.client.get(f"/usuarios/{uid}")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["id"], uid)
-        self.assertEqual(resp.json()["email"], "ana@empresa.com")
+        self.assertEqual(resp.json()["email"], "ana@comunicarlos.com.ar")
 
     def test_usuario_inexistente_retorna_404(self):
         resp = self.client.get("/usuarios/id-que-no-existe")

@@ -22,7 +22,7 @@ class TestUsuarioCreacion(unittest.TestCase):
         self.usuario = Usuario(
             id="usr-001",
             nombre="Ana García",
-            email="ana@comunicarlos.com",
+            email="ana@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_hash=_HASH,
         )
@@ -35,7 +35,7 @@ class TestUsuarioCreacion(unittest.TestCase):
         # Act / Assert
         self.assertEqual(self.usuario.id, "usr-001")
         self.assertEqual(self.usuario.nombre, "Ana García")
-        self.assertEqual(self.usuario.email, "ana@comunicarlos.com")
+        self.assertEqual(self.usuario.email, "ana@comunicarlos.com.ar")
         self.assertEqual(self.usuario.rol, RolUsuario.OPERADOR)
 
     def test_usuario_activo_por_defecto(self):
@@ -98,12 +98,18 @@ class TestUsuarioCreacion(unittest.TestCase):
 
     def test_usuario_con_cada_rol_valido(self):
         # Arrange / Act / Assert
+        emails_por_rol = {
+            RolUsuario.SOLICITANTE: "sol@gmail.com",
+            RolUsuario.SUPERVISOR: "sup@gmail.com",
+            RolUsuario.OPERADOR: "op@comunicarlos.com.ar",
+            RolUsuario.TECNICO: "tec@comunicarlos.com.ar",
+        }
         for rol in RolUsuario:
             with self.subTest(rol=rol.value):
                 u = Usuario(
                     id="x",
                     nombre="Test",
-                    email="t@t.com",
+                    email=emails_por_rol[rol],
                     rol=rol,
                     password_hash=_HASH,
                 )
@@ -121,7 +127,7 @@ class TestUsuarioPasswordHash(unittest.TestCase):
         u = Usuario(
             id="usr-020",
             nombre="Laura",
-            email="laura@empresa.com",
+            email="laura@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_hash="$2b$12$abcdef",
         )
@@ -134,7 +140,7 @@ class TestUsuarioPasswordHash(unittest.TestCase):
             Usuario(
                 id="usr-021",
                 nombre="Laura",
-                email="laura@empresa.com",
+                email="laura@comunicarlos.com.ar",
                 rol=RolUsuario.OPERADOR,
                 password_hash="",
             )
@@ -144,7 +150,7 @@ class TestUsuarioPasswordHash(unittest.TestCase):
             Usuario(
                 id="usr-022",
                 nombre="Laura",
-                email="laura@empresa.com",
+                email="laura@comunicarlos.com.ar",
                 rol=RolUsuario.OPERADOR,
                 password_hash="   ",
             )
@@ -154,7 +160,7 @@ class TestUsuarioPasswordHash(unittest.TestCase):
         u = Usuario(
             id="usr-023",
             nombre="Laura",
-            email="laura@empresa.com",
+            email="laura@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_hash=_HASH,
         )
@@ -171,7 +177,7 @@ class TestUsuarioFechasAuditoria(unittest.TestCase):
         self.usuario = Usuario(
             id="usr-030",
             nombre="Marcos",
-            email="marcos@empresa.com",
+            email="marcos@comunicarlos.com.ar",
             rol=RolUsuario.TECNICO,
             password_hash=_HASH,
         )
@@ -248,7 +254,7 @@ class TestUsuarioActivacion(unittest.TestCase):
         self.usuario = Usuario(
             id="usr-010",
             nombre="Pedro López",
-            email="pedro@comunicarlos.com",
+            email="pedro@comunicarlos.com.ar",
             rol=RolUsuario.TECNICO,
             password_hash=_HASH,
         )
@@ -304,7 +310,7 @@ class TestUsuarioIdentidad(unittest.TestCase):
         self.u2 = Usuario(
             id="usr-777",
             nombre="Usuario B diferente",
-            email="b@y.com",
+            email="b@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_hash=_HASH,
         )
@@ -334,6 +340,108 @@ class TestUsuarioIdentidad(unittest.TestCase):
         conjunto = {self.u1, self.u2}
         # Act / Assert — mismo ID → un solo elemento
         self.assertEqual(len(conjunto), 1)
+
+
+class TestEmailCorporativo(unittest.TestCase):
+    """U10 — Valida que operadores y técnicos usen @comunicarlos.com.ar."""
+
+    def tearDown(self):
+        pass
+
+    # ── roles corporativos: OPERADOR y TECNICO ────────────────────────────
+
+    def test_operador_con_email_corporativo_valido(self):
+        # Arrange / Act / Assert — no debe lanzar excepción
+        try:
+            u = Usuario(
+                id="usr-c1",
+                nombre="Ana Operador",
+                email="ana@comunicarlos.com.ar",
+                rol=RolUsuario.OPERADOR,
+                password_hash=_HASH,
+            )
+        except ValueError as e:
+            self.fail(f"Operador con email corporativo lanzó ValueError: {e}")
+        self.assertEqual(u.email, "ana@comunicarlos.com.ar")
+
+    def test_tecnico_con_email_corporativo_valido(self):
+        try:
+            u = Usuario(
+                id="usr-c2",
+                nombre="Carlos Técnico",
+                email="carlos@comunicarlos.com.ar",
+                rol=RolUsuario.TECNICO,
+                password_hash=_HASH,
+            )
+        except ValueError as e:
+            self.fail(f"Técnico con email corporativo lanzó ValueError: {e}")
+        self.assertEqual(u.email, "carlos@comunicarlos.com.ar")
+
+    def test_operador_con_email_no_corporativo_falla(self):
+        # Arrange / Act / Assert
+        with self.assertRaises(ValueError) as ctx:
+            Usuario(
+                id="usr-c3",
+                nombre="Operador Malo",
+                email="operador@gmail.com",
+                rol=RolUsuario.OPERADOR,
+                password_hash=_HASH,
+            )
+        self.assertIn("comunicarlos.com.ar", str(ctx.exception))
+
+    def test_tecnico_con_email_no_corporativo_falla(self):
+        with self.assertRaises(ValueError) as ctx:
+            Usuario(
+                id="usr-c4",
+                nombre="Técnico Malo",
+                email="tecnico@empresa.com",
+                rol=RolUsuario.TECNICO,
+                password_hash=_HASH,
+            )
+        self.assertIn("comunicarlos.com.ar", str(ctx.exception))
+
+    def test_tecnico_con_dominio_parcialmente_correcto_falla(self):
+        """@comunicarlos.com (sin .ar) no es el dominio corporativo."""
+        with self.assertRaises(ValueError):
+            Usuario(
+                id="usr-c5",
+                nombre="Técnico Parcial",
+                email="tecnico@comunicarlos.com",
+                rol=RolUsuario.TECNICO,
+                password_hash=_HASH,
+            )
+
+    # ── roles NO corporativos: SOLICITANTE y SUPERVISOR ─────────────────
+
+    def test_solicitante_puede_usar_cualquier_email(self):
+        # Arrange / Act / Assert — SOLICITANTE no tiene restricción de dominio
+        for email in ("sol@gmail.com", "s@hotmail.com", "s@empresa.org"):
+            with self.subTest(email=email):
+                try:
+                    Usuario(
+                        id="usr-c6",
+                        nombre="Solicitante",
+                        email=email,
+                        rol=RolUsuario.SOLICITANTE,
+                        password_hash=_HASH,
+                    )
+                except ValueError as e:
+                    self.fail(f"Solicitante con {email!r} lanzó ValueError: {e}")
+
+    def test_supervisor_puede_usar_cualquier_email(self):
+        # Arrange / Act / Assert — SUPERVISOR no tiene restricción de dominio
+        for email in ("jefe@gmail.com", "dir@empresa.org"):
+            with self.subTest(email=email):
+                try:
+                    Usuario(
+                        id="usr-c7",
+                        nombre="Supervisor",
+                        email=email,
+                        rol=RolUsuario.SUPERVISOR,
+                        password_hash=_HASH,
+                    )
+                except ValueError as e:
+                    self.fail(f"Supervisor con {email!r} lanzó ValueError: {e}")
 
 
 if __name__ == "__main__":

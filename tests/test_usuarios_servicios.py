@@ -80,7 +80,7 @@ class TestRegistrarUsuario(unittest.TestCase):
         # Arrange / Act
         id_ = self.servicio.registrar(
             nombre="Ana García",
-            email="ana@empresa.com",
+            email="ana@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_plano="clave123",
         )
@@ -92,20 +92,20 @@ class TestRegistrarUsuario(unittest.TestCase):
         # Arrange / Act
         id_ = self.servicio.registrar(
             nombre="Ana García",
-            email="ana@empresa.com",
+            email="ana@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_plano="clave123",
         )
         # Assert — puede recuperarse del repositorio
         usuario = self.servicio.obtener(id_)
-        self.assertEqual(usuario.email, "ana@empresa.com")
+        self.assertEqual(usuario.email, "ana@comunicarlos.com.ar")
         self.assertEqual(usuario.rol, RolUsuario.OPERADOR)
 
     def test_registrar_hashea_password(self):
         # Arrange / Act
         id_ = self.servicio.registrar(
             nombre="Ana García",
-            email="ana@empresa.com",
+            email="ana@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_plano="clave123",
         )
@@ -118,7 +118,7 @@ class TestRegistrarUsuario(unittest.TestCase):
         # Arrange
         self.servicio.registrar(
             nombre="Ana García",
-            email="ana@empresa.com",
+            email="ana@comunicarlos.com.ar",
             rol=RolUsuario.OPERADOR,
             password_plano="clave123",
         )
@@ -126,7 +126,7 @@ class TestRegistrarUsuario(unittest.TestCase):
         with self.assertRaises(EmailDuplicado):
             self.servicio.registrar(
                 nombre="Otra Ana",
-                email="ana@empresa.com",
+                email="ana@comunicarlos.com.ar",
                 rol=RolUsuario.TECNICO,
                 password_plano="otraclav",
             )
@@ -158,7 +158,7 @@ class TestAutenticarUsuario(unittest.TestCase):
         self.servicio = _hacer_servicio()
         self.id_ = self.servicio.registrar(
             nombre="Pedro López",
-            email="pedro@empresa.com",
+            email="pedro@comunicarlos.com.ar",
             rol=RolUsuario.TECNICO,
             password_plano="secreto",
         )
@@ -169,17 +169,17 @@ class TestAutenticarUsuario(unittest.TestCase):
     def test_autenticar_credenciales_correctas_retorna_usuario(self):
         # Arrange (setUp)
         # Act
-        usuario = self.servicio.autenticar("pedro@empresa.com", "secreto")
+        usuario = self.servicio.autenticar("pedro@comunicarlos.com.ar", "secreto")
         # Assert
         self.assertEqual(usuario.id, self.id_)
-        self.assertEqual(usuario.email, "pedro@empresa.com")
+        self.assertEqual(usuario.email, "pedro@comunicarlos.com.ar")
 
     def test_autenticar_actualiza_ultimo_acceso(self):
         # Arrange
         usuario_antes = self.servicio.obtener(self.id_)
         self.assertIsNone(usuario_antes.ultimo_acceso)
         # Act
-        self.servicio.autenticar("pedro@empresa.com", "secreto")
+        self.servicio.autenticar("pedro@comunicarlos.com.ar", "secreto")
         # Assert
         usuario_despues = self.servicio.obtener(self.id_)
         self.assertIsNotNone(usuario_despues.ultimo_acceso)
@@ -187,23 +187,23 @@ class TestAutenticarUsuario(unittest.TestCase):
     def test_autenticar_email_inexistente_falla(self):
         # Arrange / Act / Assert
         with self.assertRaises(CredencialesInvalidas):
-            self.servicio.autenticar("noexiste@empresa.com", "secreto")
+            self.servicio.autenticar("noexiste@comunicarlos.com.ar", "secreto")
 
     def test_autenticar_password_incorrecto_falla(self):
         # Arrange / Act / Assert
         with self.assertRaises(CredencialesInvalidas):
-            self.servicio.autenticar("pedro@empresa.com", "CLAVE_MAL")
+            self.servicio.autenticar("pedro@comunicarlos.com.ar", "CLAVE_MAL")
 
     def test_autenticar_no_revela_si_email_o_password_es_el_error(self):
         # Arrange — misma excepción para ambos casos (no enumerar usuarios)
         exc_email = None
         exc_pass = None
         try:
-            self.servicio.autenticar("noexiste@empresa.com", "secreto")
+            self.servicio.autenticar("noexiste@comunicarlos.com.ar", "secreto")
         except CredencialesInvalidas as e:
             exc_email = str(e)
         try:
-            self.servicio.autenticar("pedro@empresa.com", "CLAVE_MAL")
+            self.servicio.autenticar("pedro@comunicarlos.com.ar", "CLAVE_MAL")
         except CredencialesInvalidas as e:
             exc_pass = str(e)
         # Assert — mismo mensaje
@@ -254,8 +254,8 @@ class TestListarUsuarios(unittest.TestCase):
 
     def test_listar_retorna_todos(self):
         # Arrange
-        self.servicio.registrar("U1", "u1@x.com", RolUsuario.OPERADOR, "pw")
-        self.servicio.registrar("U2", "u2@x.com", RolUsuario.TECNICO, "pw")
+        self.servicio.registrar("U1", "u1@comunicarlos.com.ar", RolUsuario.OPERADOR, "pw")
+        self.servicio.registrar("U2", "u2@comunicarlos.com.ar", RolUsuario.TECNICO, "pw")
         # Act
         resultado = self.servicio.listar()
         # Assert

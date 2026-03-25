@@ -26,10 +26,16 @@ def _usuario_base(
     activo: bool = True,
     ultimo_acceso: datetime | None = None,
 ) -> Usuario:
+    _emails = {
+        RolUsuario.TECNICO: "ana@comunicarlos.com.ar",
+        RolUsuario.OPERADOR: "ana@comunicarlos.com.ar",
+        RolUsuario.SOLICITANTE: "ana@gmail.com",
+        RolUsuario.SUPERVISOR: "ana@gmail.com",
+    }
     return Usuario(
         id="u-001",
         nombre="Ana Gómez",
-        email="ana@empresa.com",
+        email=_emails[rol],
         rol=rol,
         password_hash=_HASH,
         activo=activo,

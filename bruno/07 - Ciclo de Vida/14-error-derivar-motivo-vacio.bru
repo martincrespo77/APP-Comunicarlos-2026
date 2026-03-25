@@ -1,0 +1,32 @@
+meta {
+  name: Error - Derivar Motivo Vacio
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_solicitud}}/derivar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "tecnico_destino_id": "{{id_usuario_tecnico2}}",
+    "motivo": ""
+  }
+}
+
+docs {
+  Intenta derivar sin especificar un motivo (cadena vacía).
+  El sistema exige motivo no vacío para mantener el registro auditable.
+  Esperado: 422 Unprocessable Entity.
+}

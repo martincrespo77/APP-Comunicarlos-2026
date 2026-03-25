@@ -1,0 +1,21 @@
+meta {
+  name: Obtener Por ID
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/requerimientos/{{id_incidente}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Obtiene el detalle completo de un requerimiento: estado, eventos de auditoría
+  y todos los comentarios.
+  Esperado: 200 RequerimientoOut completo.
+}

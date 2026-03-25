@@ -1,0 +1,21 @@
+meta {
+  name: Error - Operador Intenta Desactivar
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/usuarios/{{id_usuario_solicitante}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Un OPERADOR intenta desactivar un usuario.
+  La acción solo está permitida para el rol SUPERVISOR.
+  Esperado: 403 Forbidden.
+}

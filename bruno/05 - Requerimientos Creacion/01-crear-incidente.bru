@@ -1,0 +1,37 @@
+meta {
+  name: Crear Incidente
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/requerimientos/incidentes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_solicitante}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "titulo": "Correo corporativo inaccesible",
+    "descripcion": "Desde las 08:00 no podemos acceder al servidor de correo.",
+    "solicitante_id": "{{id_usuario_solicitante}}",
+    "urgencia": "critica",
+    "categoria": "servicio_inaccesible"
+  }
+}
+
+docs {
+  Crea un incidente de tipo SERVICIO_INACCESIBLE con urgencia CRITICA.
+  Valores de urgencia:  critica | importante | menor
+  Valores de categoria: servicio_inaccesible | bloqueo_sim | perdida_o_destruccion_equipo
+  Esperado: 201 {"id": "<uuid>"}
+  → Copiar el id retornado en la variable id_incidente del entorno Local.
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Crear Operador
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "María Operador",
+    "email": "operador@comunicarlos.com.ar",
+    "rol": "operador",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Crea un usuario con rol OPERADOR.
+  Esperado: 201 {"id": "<uuid>"}
+  → Copiar el id retornado en la variable id_usuario_operador del entorno Local.
+}

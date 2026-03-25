@@ -1,0 +1,28 @@
+meta {
+  name: Login Tecnico
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/usuarios/autenticar
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "tecnico@comunicarlos.com.ar",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Obtiene un JWT para el usuario TECNICO.
+  Esperado: 200 {"access_token": "<jwt>", "token_type": "bearer"}
+  → Copiar el access_token en la variable token_tecnico del entorno Local.
+}

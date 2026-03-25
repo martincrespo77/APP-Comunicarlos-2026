@@ -1,0 +1,34 @@
+meta {
+  name: Error - Titulo Vacio
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/requerimientos/incidentes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_solicitante}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "titulo": "",
+    "descripcion": "Sin título válido.",
+    "solicitante_id": "{{id_usuario_solicitante}}",
+    "urgencia": "menor",
+    "categoria": "bloqueo_sim"
+  }
+}
+
+docs {
+  Intenta crear un incidente con título vacío.
+  Esperado: 422 Unprocessable Entity.
+}

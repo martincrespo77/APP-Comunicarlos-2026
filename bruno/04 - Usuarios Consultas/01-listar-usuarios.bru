@@ -1,0 +1,22 @@
+meta {
+  name: Listar Usuarios
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/usuarios
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Lista todos los usuarios del sistema.
+  Requiere rol OPERADOR o SUPERVISOR.
+  Esperado: 200 [array de UsuarioOut].
+  Nota: la respuesta nunca incluye password_hash.
+}

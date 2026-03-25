@@ -1,0 +1,22 @@
+meta {
+  name: Listar Todos
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/requerimientos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Lista todos los requerimientos del sistema.
+  El OPERADOR ve todos; el SOLICITANTE ve solo los suyos;
+  el TECNICO ve solo los que tiene asignados.
+  Esperado: 200 [array de RequerimientoOut con eventos y comentarios].
+}

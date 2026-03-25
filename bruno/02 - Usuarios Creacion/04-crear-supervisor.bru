@@ -1,0 +1,29 @@
+meta {
+  name: Crear Supervisor
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Roberto Supervisor",
+    "email": "supervisor@comunicarlos.com.ar",
+    "rol": "supervisor",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Crea un usuario con rol SUPERVISOR.
+  Esperado: 201 {"id": "<uuid>"}
+}

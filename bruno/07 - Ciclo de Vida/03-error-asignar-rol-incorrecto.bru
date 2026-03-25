@@ -1,0 +1,30 @@
+meta {
+  name: Error - Asignar Rol Incorrecto
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/asignar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_solicitante}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "tecnico_id": "{{id_usuario_tecnico}}"
+  }
+}
+
+docs {
+  El SOLICITANTE intenta asignar un técnico. Solo OPERADOR puede hacerlo.
+  Esperado: 403 Forbidden.
+}

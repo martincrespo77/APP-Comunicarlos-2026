@@ -1,0 +1,30 @@
+meta {
+  name: Error - Requerimiento Inexistente
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/requerimientos/no-existe/asignar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "tecnico_id": "{{id_usuario_tecnico}}"
+  }
+}
+
+docs {
+  El OPERADOR intenta asignar técnico a un requerimiento que no existe.
+  Esperado: 404 Not Found.
+}

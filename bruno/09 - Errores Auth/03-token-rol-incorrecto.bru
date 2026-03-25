@@ -1,0 +1,22 @@
+meta {
+  name: Error - Token con Rol Incorrecto
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{base_url}}/usuarios/{{id_usuario_solicitante}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Un usuario con rol OPERADOR intenta ejecutar una acción
+  exclusiva del SUPERVISOR (DELETE /usuarios/{id}).
+  El token es válido pero el rol es insuficiente.
+  Esperado: 403 Forbidden.
+}

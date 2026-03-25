@@ -1,0 +1,23 @@
+meta {
+  name: Verificar Estado Resuelto
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{base_url}}/requerimientos/{{id_incidente}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Verifica el estado final del incidente después de resolverlo.
+  Esperado: 200 con:
+    - estado: "resuelto"
+    - eventos[] que incluya tipo "resolucion"
+    - tecnico_asignado_id aún presente
+}

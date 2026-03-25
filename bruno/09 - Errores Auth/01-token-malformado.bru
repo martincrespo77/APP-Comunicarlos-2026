@@ -1,0 +1,21 @@
+meta {
+  name: Error - Token Malformado
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/requerimientos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: esto.no.es.un.jwt.valido
+}
+
+docs {
+  Se envía un token Bearer con formato inválido (no es un JWT real).
+  El servidor debe rechazarlo sin procesar la solicitud.
+  Esperado: 401 Unauthorized.
+}

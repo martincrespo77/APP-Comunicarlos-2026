@@ -1,0 +1,31 @@
+meta {
+  name: Comentario del Operador
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/comentarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "contenido": "Escalado correctamente. El técnico está trabajando en ello."
+  }
+}
+
+docs {
+  El OPERADOR agrega un comentario al incidente.
+  Los operadores pueden comentar en cualquier requerimiento.
+  Esperado: 204 No Content.
+}

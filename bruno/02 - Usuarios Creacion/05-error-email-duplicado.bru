@@ -1,0 +1,29 @@
+meta {
+  name: Error - Email Duplicado
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Otro Operador",
+    "email": "operador@comunicarlos.com.ar",
+    "rol": "operador",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Intenta crear un usuario con un email que ya existe.
+  Esperado: 409 Conflict.
+}

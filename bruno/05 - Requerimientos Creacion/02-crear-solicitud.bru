@@ -1,0 +1,36 @@
+meta {
+  name: Crear Solicitud
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/requerimientos/solicitudes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_solicitante}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "titulo": "Alta de servicio VoIP para ventas",
+    "descripcion": "El equipo de ventas necesita extensiones VoIP para el nuevo piso.",
+    "solicitante_id": "{{id_usuario_solicitante}}",
+    "categoria": "alta_servicio"
+  }
+}
+
+docs {
+  Crea una solicitud de tipo ALTA_SERVICIO.
+  Las solicitudes no tienen urgencia (a diferencia de los incidentes).
+  Valores de categoria: alta_servicio | baja_servicio
+  Esperado: 201 {"id": "<uuid>"}
+  → Copiar el id retornado en la variable id_solicitud del entorno Local.
+}

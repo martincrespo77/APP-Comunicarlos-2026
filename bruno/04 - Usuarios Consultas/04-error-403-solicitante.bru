@@ -1,0 +1,21 @@
+meta {
+  name: Error - Solicitante Ve Perfil Ajeno
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/usuarios/{{id_usuario_operador}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_solicitante}}
+}
+
+docs {
+  El solicitante intenta ver el perfil de otro usuario.
+  Los solicitantes solo pueden ver su propio perfil.
+  Esperado: 403 Forbidden.
+}

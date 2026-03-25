@@ -1,0 +1,22 @@
+meta {
+  name: Ver Todos los Requerimientos
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/requerimientos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_supervisor}}
+}
+
+docs {
+  El SUPERVISOR ve todos los requerimientos del sistema (visibilidad total).
+  Puede aplicar los mismos filtros que el OPERADOR:
+  ?estado= | ?solicitante_id= | ?tecnico_id=
+  Esperado: 200 [todos los requerimientos].
+}

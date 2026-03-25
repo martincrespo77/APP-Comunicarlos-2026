@@ -1,0 +1,21 @@
+meta {
+  name: Filtrar Por Solicitante
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/requerimientos?solicitante_id={{id_usuario_solicitante}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Lista los requerimientos creados por un solicitante específico.
+  Solo disponible para OPERADOR y SUPERVISOR (con filtros completos).
+  Esperado: 200 [requerimientos del solicitante].
+}

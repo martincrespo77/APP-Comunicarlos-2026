@@ -1,0 +1,21 @@
+meta {
+  name: Operador Ve Perfil de Tecnico
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/usuarios/{{id_usuario_tecnico}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  El operador consulta el perfil de otro usuario (el técnico).
+  Los roles OPERADOR y SUPERVISOR pueden ver el perfil de cualquier usuario.
+  Esperado: 200 UsuarioOut.
+}

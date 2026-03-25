@@ -1,0 +1,21 @@
+meta {
+  name: Error - Resolver Ya Resuelto
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/resolver
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+docs {
+  Intenta resolver un incidente que ya está en estado RESUELTO.
+  La máquina de estados no admite RESUELTO → RESUELTO.
+  Esperado: 422 Unprocessable Entity (TransicionEstadoInvalida).
+}

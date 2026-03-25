@@ -1,0 +1,36 @@
+meta {
+  name: Derivar a Tecnico 2
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_solicitud}}/derivar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "tecnico_destino_id": "{{id_usuario_tecnico2}}",
+    "motivo": "La solicitud requiere conocimiento de central VoIP del que no dispongo."
+  }
+}
+
+docs {
+  El TECNICO actualmente asignado deriva la solicitud a otro técnico (interconsulta).
+  El sistema registra tanto el técnico origen como el destino de la derivación.
+  Estado vuelve a: ASIGNADO (el técnico destino debe iniciar su ciclo).
+  Se registra evento de auditoría DERIVACION con motivo.
+  Prerrequisito: la solicitud debe estar en estado ASIGNADO o EN_PROGRESO
+  y el técnico autenticado debe ser el actualmente asignado.
+  Esperado: 204 No Content.
+}

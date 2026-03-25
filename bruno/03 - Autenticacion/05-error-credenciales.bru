@@ -1,0 +1,27 @@
+meta {
+  name: Error - Credenciales Incorrectas
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/usuarios/autenticar
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "operador@comunicarlos.com.ar",
+    "password": "clave-incorrecta"
+  }
+}
+
+docs {
+  Intenta autenticar con contraseña incorrecta.
+  Esperado: 401 Unauthorized.
+}

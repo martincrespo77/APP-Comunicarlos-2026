@@ -1,0 +1,21 @@
+meta {
+  name: Filtrar Por Estado
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/requerimientos?estado=abierto
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Lista requerimientos filtrados por estado.
+  Estados válidos: abierto | asignado | en_progreso | resuelto | reabierto
+  Esperado: 200 [solo los requerimientos en estado "abierto"].
+}

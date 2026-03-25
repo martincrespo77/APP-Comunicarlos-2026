@@ -1,0 +1,20 @@
+meta {
+  name: Error - Iniciar Rol Incorrecto
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/iniciar
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  El OPERADOR intenta iniciar trabajo. Solo el TECNICO asignado puede hacerlo.
+  Esperado: 403 Forbidden.
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Verificar Comentarios en Detalle
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{base_url}}/requerimientos/{{id_incidente}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Obtiene el detalle del incidente para verificar que los comentarios
+  anteriores aparecen en el array "comentarios" y los eventos de auditoría
+  están registrados en el array "eventos".
+  Esperado: 200 con comentarios[] no vacío y eventos[] con CREACION, ASIGNACION,
+  INICIO_TRABAJO y COMENTARIO.
+}

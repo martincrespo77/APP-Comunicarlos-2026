@@ -1,0 +1,23 @@
+meta {
+  name: Verificar Estado Reabierto
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{base_url}}/requerimientos/{{id_incidente}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Verifica que el incidente quedó en estado REABIERTO y sin técnico asignado.
+  Esperado: 200 con:
+    - estado: "reabierto"
+    - tecnico_asignado_id: null
+    - eventos[] que incluya tipo "reapertura"
+}

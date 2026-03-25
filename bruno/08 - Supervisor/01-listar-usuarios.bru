@@ -1,0 +1,21 @@
+meta {
+  name: Listar Usuarios como Supervisor
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/usuarios
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_supervisor}}
+}
+
+docs {
+  El SUPERVISOR lista todos los usuarios del sistema.
+  Junto con OPERADOR, son los únicos roles con acceso al padrón.
+  Esperado: 200 [array completo de UsuarioOut].
+}

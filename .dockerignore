@@ -1,0 +1,36 @@
+# ── Control de versiones ──────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── Entorno virtual local ─────────────────────────────────────────────────────
+.venv/
+
+# ── Tests y herramientas de desarrollo ───────────────────────────────────────
+tests/
+conftest.py
+.pytest_cache/
+pytest.ini
+
+# ── Caché de Python ───────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# ── Variables de entorno reales (NUNCA incluir en imagen) ─────────────────────
+.env
+
+# ── Archivos de base de datos locales ────────────────────────────────────────
+*.db
+*.sqlite3
+
+# ── Documentación y archivos de proyecto que no son código ───────────────────
+*.md
+implementation_plan-fase1
+DIAGNOSTICO_ESTADO_PROYECTO.md
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace

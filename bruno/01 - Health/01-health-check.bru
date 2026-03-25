@@ -1,0 +1,17 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/health
+  body: none
+  auth: none
+}
+
+docs {
+  Verifica que el servidor está en línea.
+  No requiere autenticación.
+  Esperado: 200 {"status": "ok"}
+}

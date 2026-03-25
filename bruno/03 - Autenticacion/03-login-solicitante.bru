@@ -1,0 +1,28 @@
+meta {
+  name: Login Solicitante
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/usuarios/autenticar
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "ana.solicitante@gmail.com",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Obtiene un JWT para el usuario SOLICITANTE.
+  Esperado: 200 {"access_token": "<jwt>", "token_type": "bearer"}
+  → Copiar el access_token en la variable token_solicitante del entorno Local.
+}

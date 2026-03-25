@@ -1,0 +1,30 @@
+meta {
+  name: Error - Comentario Vacio
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/comentarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "contenido": ""
+  }
+}
+
+docs {
+  Intenta agregar un comentario con contenido vacío.
+  Esperado: 422 Unprocessable Entity.
+}

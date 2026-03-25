@@ -1,0 +1,29 @@
+meta {
+  name: Error - Usuario Inexistente
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/usuarios/autenticar
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "noexiste@comunicarlos.com.ar",
+    "password": "cualquier-clave"
+  }
+}
+
+docs {
+  Intenta autenticar con un email que no existe en el sistema.
+  Esperado: 401 Unauthorized.
+  Nota: el mensaje es igual al de credenciales incorrectas para evitar
+  revelar qué emails están registrados (enumeración de usuarios).
+}

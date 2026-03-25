@@ -1,0 +1,30 @@
+meta {
+  name: Error - Sin Token
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/requerimientos/incidentes
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "titulo": "Incidente sin autenticación",
+    "descripcion": "No debería procesarse.",
+    "solicitante_id": "cualquiera",
+    "urgencia": "menor",
+    "categoria": "bloqueo_sim"
+  }
+}
+
+docs {
+  Intenta crear un incidente sin enviar token de autenticación.
+  Esperado: 401 Unauthorized.
+}

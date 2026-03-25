@@ -1,0 +1,21 @@
+meta {
+  name: Obtener Propio Perfil
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/usuarios/{{id_usuario_operador}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  El operador consulta su propio perfil.
+  Cualquier usuario autenticado puede ver su propio perfil.
+  Esperado: 200 UsuarioOut con fecha_creacion y ultimo_acceso.
+}

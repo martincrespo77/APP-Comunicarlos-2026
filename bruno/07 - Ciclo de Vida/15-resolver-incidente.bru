@@ -1,0 +1,24 @@
+meta {
+  name: Resolver Incidente
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/resolver
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+docs {
+  El TECNICO asignado marca el incidente como resuelto.
+  Estado cambia: EN_PROGRESO → RESUELTO.
+  Se registra evento de auditoría RESOLUCION.
+  Solo el técnico actualmente asignado puede resolver.
+  Prerrequisito: el incidente debe estar en estado EN_PROGRESO.
+  Esperado: 204 No Content.
+}

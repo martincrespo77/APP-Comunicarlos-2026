@@ -1,0 +1,33 @@
+meta {
+  name: Asignar Tecnico al Incidente
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/asignar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "tecnico_id": "{{id_usuario_tecnico}}"
+  }
+}
+
+docs {
+  El OPERADOR asigna un técnico al incidente.
+  Estado del incidente cambia: ABIERTO → ASIGNADO.
+  Se registra evento de auditoría ASIGNACION.
+  Solo el rol OPERADOR puede ejecutar esta acción.
+  Esperado: 204 No Content.
+}

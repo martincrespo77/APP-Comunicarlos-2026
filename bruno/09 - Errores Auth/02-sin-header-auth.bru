@@ -1,0 +1,17 @@
+meta {
+  name: Error - Sin Header Authorization
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/requerimientos
+  body: none
+  auth: none
+}
+
+docs {
+  Se accede a un endpoint protegido sin enviar el header Authorization.
+  El servidor debe exigir autenticación antes de responder.
+  Esperado: 401 Unauthorized.
+}

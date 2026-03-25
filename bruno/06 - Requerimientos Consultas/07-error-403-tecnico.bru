@@ -1,0 +1,22 @@
+meta {
+  name: Error - Tecnico Sin Asignacion
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/requerimientos/{{id_incidente}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+docs {
+  El técnico intenta ver un requerimiento que no tiene asignado.
+  Los técnicos solo tienen visibilidad sobre requerimientos donde son el tecnico_asignado_id.
+  Esperado: 403 Forbidden.
+  Nota: ejecutar ANTES de asignar el técnico a este incidente (sección 07).
+}

@@ -1,0 +1,20 @@
+meta {
+  name: Error - Requerimiento No Encontrado
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/requerimientos/id-inexistente
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Busca un requerimiento con un ID que no existe.
+  Esperado: 404 Not Found.
+}

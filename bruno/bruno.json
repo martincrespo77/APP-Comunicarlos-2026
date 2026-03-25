@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Mesa de Ayuda - Comunicarlos",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

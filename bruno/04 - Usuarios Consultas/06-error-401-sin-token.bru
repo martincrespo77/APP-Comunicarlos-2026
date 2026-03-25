@@ -1,0 +1,16 @@
+meta {
+  name: Error - Sin Token
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/usuarios
+  body: none
+  auth: none
+}
+
+docs {
+  Intenta acceder a un endpoint protegido sin enviar el header Authorization.
+  Esperado: 401 Unauthorized.
+}

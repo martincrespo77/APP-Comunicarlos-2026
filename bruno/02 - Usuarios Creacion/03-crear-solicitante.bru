@@ -1,0 +1,31 @@
+meta {
+  name: Crear Solicitante
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Ana Solicitante",
+    "email": "ana.solicitante@gmail.com",
+    "rol": "solicitante",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Crea un usuario con rol SOLICITANTE.
+  Los solicitantes pueden usar cualquier email (no corporativo).
+  Esperado: 201 {"id": "<uuid>"}
+  → Copiar el id retornado en la variable id_usuario_solicitante del entorno Local.
+}

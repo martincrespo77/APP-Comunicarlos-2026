@@ -1,0 +1,28 @@
+meta {
+  name: Login Supervisor
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/usuarios/autenticar
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "supervisor@comunicarlos.com.ar",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Obtiene un JWT para el usuario SUPERVISOR.
+  Esperado: 200 {"access_token": "<jwt>", "token_type": "bearer"}
+  → Copiar el access_token en la variable token_supervisor del entorno Local.
+}

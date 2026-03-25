@@ -1,0 +1,29 @@
+meta {
+  name: Error - Datos Invalidos
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Usuario Inválido",
+    "email": "no-es-un-email",
+    "rol": "operador",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Intenta crear un usuario con email inválido (sin @).
+  Esperado: 422 Unprocessable Entity.
+}

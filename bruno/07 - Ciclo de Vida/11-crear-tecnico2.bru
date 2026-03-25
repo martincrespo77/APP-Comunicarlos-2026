@@ -1,0 +1,30 @@
+meta {
+  name: Crear Tecnico 2 Para Derivar
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{base_url}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Luis Técnico 2",
+    "email": "tecnico2@comunicarlos.com.ar",
+    "rol": "tecnico",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Crea un segundo técnico para poder demostrar la derivación.
+  Esperado: 201 {"id": "<uuid>"}
+  → Copiar el id retornado en la variable id_usuario_tecnico2 del entorno Local.
+}

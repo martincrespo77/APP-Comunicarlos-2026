@@ -1,0 +1,28 @@
+meta {
+  name: Login Tecnico 2
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{base_url}}/usuarios/autenticar
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "tecnico2@comunicarlos.com.ar",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Obtiene el JWT del segundo técnico.
+  Esperado: 200 {"access_token": "<jwt>", "token_type": "bearer"}
+  (Token guardado manualmente si se necesita usar al técnico 2 en derivaciones posteriores.)
+}

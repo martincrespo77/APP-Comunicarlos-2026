@@ -1,0 +1,30 @@
+meta {
+  name: Crear Tecnico
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Carlos Técnico",
+    "email": "tecnico@comunicarlos.com.ar",
+    "rol": "tecnico",
+    "password": "Pass1234!"
+  }
+}
+
+docs {
+  Crea un usuario con rol TECNICO.
+  Esperado: 201 {"id": "<uuid>"}
+  → Copiar el id retornado en la variable id_usuario_tecnico del entorno Local.
+}

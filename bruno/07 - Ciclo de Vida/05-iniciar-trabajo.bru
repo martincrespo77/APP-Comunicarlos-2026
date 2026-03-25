@@ -1,0 +1,22 @@
+meta {
+  name: Iniciar Trabajo
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/iniciar
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+docs {
+  El TECNICO asignado inicia el trabajo en el incidente.
+  Estado cambia: ASIGNADO → EN_PROGRESO.
+  Solo el técnico actualmente asignado puede ejecutar esta acción.
+  Esperado: 204 No Content.
+}

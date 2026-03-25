@@ -1,0 +1,32 @@
+meta {
+  name: Comentario del Tecnico
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/comentarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_tecnico}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "contenido": "Identifiqué el problema: el servidor SMTP tiene el puerto 25 bloqueado."
+  }
+}
+
+docs {
+  El TECNICO asignado documenta su progreso con un comentario.
+  El comentario es inmutable una vez creado (no se puede editar ni borrar).
+  Se registra evento de auditoría COMENTARIO.
+  Esperado: 204 No Content.
+}

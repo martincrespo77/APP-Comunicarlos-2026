@@ -1,0 +1,24 @@
+meta {
+  name: Desactivar Usuario
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{base_url}}/usuarios/{{id_usuario_solicitante}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_supervisor}}
+}
+
+docs {
+  El SUPERVISOR desactiva la cuenta de un usuario.
+  La cuenta queda con activo=false; el usuario no podrá autenticarse.
+  Solo el rol SUPERVISOR puede ejecutar esta acción.
+  PRECAUCIÓN: ejecutar al final de la demo para no romper requests anteriores
+  que usan el token del solicitante.
+  Esperado: 204 No Content.
+}

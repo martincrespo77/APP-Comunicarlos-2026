@@ -1,0 +1,22 @@
+meta {
+  name: Listar Mis Requerimientos
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/requerimientos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_solicitante}}
+}
+
+docs {
+  El SOLICITANTE lista sus propios requerimientos.
+  El backend aplica automáticamente el filtro por solicitante_id del JWT;
+  los query params de solicitante_id son ignorados para este rol.
+  Esperado: 200 [solo los requerimientos creados por el solicitante autenticado].
+}

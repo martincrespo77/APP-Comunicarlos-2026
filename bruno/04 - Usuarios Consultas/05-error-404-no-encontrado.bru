@@ -1,0 +1,20 @@
+meta {
+  name: Error - Usuario No Encontrado
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/usuarios/id-que-no-existe
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+docs {
+  Busca un usuario con un ID que no existe en el sistema.
+  Esperado: 404 Not Found.
+}

@@ -1,0 +1,31 @@
+meta {
+  name: Asignar Tecnico a Solicitud
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_solicitud}}/asignar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "tecnico_id": "{{id_usuario_tecnico}}"
+  }
+}
+
+docs {
+  El OPERADOR asigna un técnico a la solicitud.
+  Estado de la solicitud cambia: ABIERTO → ASIGNADO.
+  Esperado: 204 No Content.
+}

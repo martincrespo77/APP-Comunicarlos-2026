@@ -1,0 +1,35 @@
+meta {
+  name: Reapertura por Comentario de Operador
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{base_url}}/requerimientos/{{id_incidente}}/comentarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token_operador}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "contenido": "El cliente reporta que el problema persiste. Reabriendo para nueva revisión."
+  }
+}
+
+docs {
+  Un comentario de OPERADOR o TECNICO sobre un requerimiento RESUELTO
+  lo reabre automáticamente.
+  Estado cambia: RESUELTO → REABIERTO.
+  tecnico_asignado_id se limpia (NULL) para forzar nueva asignación.
+  Se registra evento de auditoría REAPERTURA.
+  Un comentario de SOLICITANTE sobre RESUELTO NO reabre.
+  Esperado: 204 No Content.
+}

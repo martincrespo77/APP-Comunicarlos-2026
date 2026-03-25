@@ -1,0 +1,633 @@
+### Mesa de Ayuda — Colección de requests HTTP
+### Formato: VS Code REST Client (.http)
+###
+### Extensión requerida: "REST Client" (Huachao Mao) — ID: humao.rest-client
+###   Instalar: Ctrl+Shift+X → buscar "REST Client" → Install
+###
+### USO:
+###   1. Levantar la app:  uvicorn main:app --reload
+###      (o con Docker:    docker compose up)
+###   2. Abrir este archivo en VS Code.
+###   3. Hacer clic en "Send Request" sobre cada bloque.
+###   4. Seguir el orden: primero crear usuarios, luego autenticar,
+###      luego usar el token en los requests siguientes.
+###
+### VARIABLES:
+###   Editar las variables @... con los IDs reales que devuelva la API.
+###   Los valores por defecto son los que usa el flujo completo de abajo.
+###
+### NOTA SOBRE ROLES:
+###   operador  → puede asignar técnicos
+###   tecnico   → puede iniciar, resolver, derivar
+###   solicitante → puede abrir tickets, ver los suyos
+###   supervisor  → puede listar/desactivar usuarios
+
+@base_url = http://localhost:8000
+
+# ── Tokens (completar después de autenticar en la sección 03) ────────────────
+@token_operador    = PEGAR_TOKEN_OPERADOR_AQUI
+@token_tecnico     = PEGAR_TOKEN_TECNICO_AQUI
+@token_solicitante = PEGAR_TOKEN_SOLICITANTE_AQUI
+@token_supervisor  = PEGAR_TOKEN_SUPERVISOR_AQUI
+
+# ── IDs dinámicos (completar con los valores devueltos por la API) ────────────
+@id_usuario_operador    = PEGAR_ID_OPERADOR_AQUI
+@id_usuario_tecnico     = PEGAR_ID_TECNICO_AQUI
+@id_usuario_solicitante = PEGAR_ID_SOLICITANTE_AQUI
+@id_incidente           = PEGAR_ID_INCIDENTE_AQUI
+@id_solicitud           = PEGAR_ID_SOLICITUD_AQUI
+
+
+###############################################################################
+# 01 — HEALTH CHECK
+###############################################################################
+
+### 01.01 — Health check (sin autenticación)
+# Esperado: 200 {"status": "ok"}
+GET {{base_url}}/health
+
+
+###############################################################################
+# 02 — USUARIOS: CREACIÓN
+###############################################################################
+
+### 02.01 — Crear usuario OPERADOR
+# Esperado: 201 {"id": "<uuid>"}
+# → Copiar el id en @id_usuario_operador
+POST {{base_url}}/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "María Operador",
+  "email": "operador@comunicarlos.com",
+  "rol": "operador",
+  "password": "Pass1234!"
+}
+
+###
+
+### 02.02 — Crear usuario TÉCNICO
+# Esperado: 201 {"id": "<uuid>"}
+# → Copiar el id en @id_usuario_tecnico
+POST {{base_url}}/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Carlos Técnico",
+  "email": "tecnico@comunicarlos.com",
+  "rol": "tecnico",
+  "password": "Pass1234!"
+}
+
+###
+
+### 02.03 — Crear usuario SOLICITANTE
+# Esperado: 201 {"id": "<uuid>"}
+# → Copiar el id en @id_usuario_solicitante
+POST {{base_url}}/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Ana Solicitante",
+  "email": "solicitante@comunicarlos.com",
+  "rol": "solicitante",
+  "password": "Pass1234!"
+}
+
+###
+
+### 02.04 — Crear usuario SUPERVISOR
+# Esperado: 201 {"id": "<uuid>"}
+POST {{base_url}}/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Roberto Supervisor",
+  "email": "supervisor@comunicarlos.com",
+  "rol": "supervisor",
+  "password": "Pass1234!"
+}
+
+###
+
+### 02.05 — ERROR: email duplicado
+# Esperado: 409 Conflict
+POST {{base_url}}/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Otro Operador",
+  "email": "operador@comunicarlos.com",
+  "rol": "operador",
+  "password": "Pass1234!"
+}
+
+###
+
+### 02.06 — ERROR: datos inválidos (email sin @)
+# Esperado: 422 Unprocessable Entity
+POST {{base_url}}/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Usuario Inválido",
+  "email": "no-es-un-email",
+  "rol": "operador",
+  "password": "Pass1234!"
+}
+
+
+###############################################################################
+# 03 — AUTENTICACIÓN / LOGIN
+###############################################################################
+
+### 03.01 — Autenticar OPERADOR
+# Esperado: 200 {"access_token": "<jwt>", "token_type": "bearer"}
+# → Copiar access_token en @token_operador
+POST {{base_url}}/usuarios/autenticar
+Content-Type: application/json
+
+{
+  "email": "operador@comunicarlos.com",
+  "password": "Pass1234!"
+}
+
+###
+
+### 03.02 — Autenticar TÉCNICO
+# → Copiar access_token en @token_tecnico
+POST {{base_url}}/usuarios/autenticar
+Content-Type: application/json
+
+{
+  "email": "tecnico@comunicarlos.com",
+  "password": "Pass1234!"
+}
+
+###
+
+### 03.03 — Autenticar SOLICITANTE
+# → Copiar access_token en @token_solicitante
+POST {{base_url}}/usuarios/autenticar
+Content-Type: application/json
+
+{
+  "email": "solicitante@comunicarlos.com",
+  "password": "Pass1234!"
+}
+
+###
+
+### 03.04 — Autenticar SUPERVISOR
+# → Copiar access_token en @token_supervisor
+POST {{base_url}}/usuarios/autenticar
+Content-Type: application/json
+
+{
+  "email": "supervisor@comunicarlos.com",
+  "password": "Pass1234!"
+}
+
+###
+
+### 03.05 — ERROR: credenciales incorrectas
+# Esperado: 401 Unauthorized
+POST {{base_url}}/usuarios/autenticar
+Content-Type: application/json
+
+{
+  "email": "operador@comunicarlos.com",
+  "password": "clave-incorrecta"
+}
+
+###
+
+### 03.06 — ERROR: usuario inexistente
+# Esperado: 401 Unauthorized (mismo mensaje que clave incorrecta, por seguridad)
+POST {{base_url}}/usuarios/autenticar
+Content-Type: application/json
+
+{
+  "email": "noexiste@comunicarlos.com",
+  "password": "cualquier-clave"
+}
+
+
+###############################################################################
+# 04 — USUARIOS: CONSULTAS
+###############################################################################
+
+### 04.01 — Listar todos los usuarios (como OPERADOR)
+# Esperado: 200 [array de UsuarioOut]
+GET {{base_url}}/usuarios
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 04.02 — Obtener usuario por ID (el operador ve su propio perfil)
+# Esperado: 200 UsuarioOut
+GET {{base_url}}/usuarios/{{id_usuario_operador}}
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 04.03 — Obtener usuario por ID (operador ve perfil de otro usuario)
+# Esperado: 200 UsuarioOut
+GET {{base_url}}/usuarios/{{id_usuario_tecnico}}
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 04.04 — ERROR: solicitante intenta ver perfil de otro
+# Esperado: 403 Forbidden
+GET {{base_url}}/usuarios/{{id_usuario_operador}}
+Authorization: Bearer {{token_solicitante}}
+
+###
+
+### 04.05 — ERROR: usuario no encontrado
+# Esperado: 404 Not Found
+GET {{base_url}}/usuarios/id-que-no-existe
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 04.06 — ERROR: sin token (ruta protegida)
+# Esperado: 401 Unauthorized
+GET {{base_url}}/usuarios
+
+
+###############################################################################
+# 05 — REQUERIMIENTOS: CREACIÓN
+###############################################################################
+
+### 05.01 — Crear INCIDENTE (como solicitante)
+# Esperado: 201 {"id": "<uuid>"}
+# → Copiar el id en @id_incidente
+# Valores de urgencia:    critica | importante | menor
+# Valores de categoria:   servicio_inaccesible | bloqueo_sim | perdida_o_destruccion_equipo
+POST {{base_url}}/requerimientos/incidentes
+Authorization: Bearer {{token_solicitante}}
+Content-Type: application/json
+
+{
+  "titulo": "Correo corporativo inaccesible",
+  "descripcion": "Desde las 08:00 no podemos acceder al servidor de correo.",
+  "solicitante_id": "{{id_usuario_solicitante}}",
+  "urgencia": "critica",
+  "categoria": "servicio_inaccesible"
+}
+
+###
+
+### 05.02 — Crear SOLICITUD (como solicitante)
+# Esperado: 201 {"id": "<uuid>"}
+# → Copiar el id en @id_solicitud
+# Valores de categoria: alta_servicio | baja_servicio
+POST {{base_url}}/requerimientos/solicitudes
+Authorization: Bearer {{token_solicitante}}
+Content-Type: application/json
+
+{
+  "titulo": "Alta de servicio VoIP para ventas",
+  "descripcion": "El equipo de ventas necesita extensiones VoIP para el nuevo piso.",
+  "solicitante_id": "{{id_usuario_solicitante}}",
+  "categoria": "alta_servicio"
+}
+
+###
+
+### 05.03 — ERROR: sin token
+# Esperado: 401 Unauthorized
+POST {{base_url}}/requerimientos/incidentes
+Content-Type: application/json
+
+{
+  "titulo": "Incidente sin auth",
+  "descripcion": "No debería procesarse.",
+  "solicitante_id": "cualquiera",
+  "urgencia": "menor",
+  "categoria": "bloqueo_sim"
+}
+
+###
+
+### 05.04 — ERROR: campos inválidos (título vacío)
+# Esperado: 422 Unprocessable Entity
+POST {{base_url}}/requerimientos/incidentes
+Authorization: Bearer {{token_solicitante}}
+Content-Type: application/json
+
+{
+  "titulo": "",
+  "descripcion": "Sin título.",
+  "solicitante_id": "{{id_usuario_solicitante}}",
+  "urgencia": "menor",
+  "categoria": "bloqueo_sim"
+}
+
+
+###############################################################################
+# 06 — REQUERIMIENTOS: CONSULTAS
+###############################################################################
+
+### 06.01 — Listar todos los requerimientos (como OPERADOR)
+# Esperado: 200 [array de RequerimientoOut]
+GET {{base_url}}/requerimientos
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 06.02 — Listar requerimientos filtrados por estado
+# Esperado: 200 [solo requerimientos en estado "abierto"]
+GET {{base_url}}/requerimientos?estado=abierto
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 06.03 — Listar requerimientos filtrados por solicitante
+GET {{base_url}}/requerimientos?solicitante_id={{id_usuario_solicitante}}
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 06.04 — Listar solo mis requerimientos (como SOLICITANTE)
+# El filtro es automático: el backend ignora los query params y filtra por current.id
+# Esperado: 200 [solo los del solicitante autenticado]
+GET {{base_url}}/requerimientos
+Authorization: Bearer {{token_solicitante}}
+
+###
+
+### 06.05 — Obtener requerimiento por ID (como OPERADOR)
+# Esperado: 200 RequerimientoOut con eventos y comentarios
+GET {{base_url}}/requerimientos/{{id_incidente}}
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 06.06 — ERROR: requerimiento no encontrado
+# Esperado: 404 Not Found
+GET {{base_url}}/requerimientos/id-inexistente
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 06.07 — ERROR: solicitante intenta ver requerimiento ajeno
+# (primero se necesita el id_incidente creado por el solicitante
+#  y otro solicitante intentando acceder)
+# Esperado: 403 Forbidden
+# (demo: el técnico intenta ver un requerimiento que no tiene asignado)
+GET {{base_url}}/requerimientos/{{id_incidente}}
+Authorization: Bearer {{token_tecnico}}
+
+
+###############################################################################
+# 07 — CICLO DE VIDA: ASIGNAR TÉCNICO
+###############################################################################
+
+### 07.01 — Asignar técnico al incidente (solo OPERADOR)
+# Esperado: 204 No Content
+POST {{base_url}}/requerimientos/{{id_incidente}}/asignar
+Authorization: Bearer {{token_operador}}
+Content-Type: application/json
+
+{
+  "tecnico_id": "{{id_usuario_tecnico}}"
+}
+
+###
+
+### 07.02 — Asignar técnico a la solicitud
+# Esperado: 204 No Content
+POST {{base_url}}/requerimientos/{{id_solicitud}}/asignar
+Authorization: Bearer {{token_operador}}
+Content-Type: application/json
+
+{
+  "tecnico_id": "{{id_usuario_tecnico}}"
+}
+
+###
+
+### 07.03 — ERROR: solicitante intenta asignar técnico
+# Esperado: 403 Forbidden
+POST {{base_url}}/requerimientos/{{id_incidente}}/asignar
+Authorization: Bearer {{token_solicitante}}
+Content-Type: application/json
+
+{
+  "tecnico_id": "{{id_usuario_tecnico}}"
+}
+
+###
+
+### 07.04 — ERROR: requerimiento inexistente
+# Esperado: 404 Not Found
+POST {{base_url}}/requerimientos/no-existe/asignar
+Authorization: Bearer {{token_operador}}
+Content-Type: application/json
+
+{
+  "tecnico_id": "{{id_usuario_tecnico}}"
+}
+
+
+###############################################################################
+# 08 — CICLO DE VIDA: INICIAR TRABAJO
+###############################################################################
+
+### 08.01 — El técnico inicia trabajo en el incidente
+# (requiere que el incidente esté en estado "asignado")
+# Esperado: 204 No Content
+POST {{base_url}}/requerimientos/{{id_incidente}}/iniciar
+Authorization: Bearer {{token_tecnico}}
+
+###
+
+### 08.02 — ERROR: operador intenta iniciar trabajo (solo técnico puede)
+# Esperado: 403 Forbidden
+POST {{base_url}}/requerimientos/{{id_incidente}}/iniciar
+Authorization: Bearer {{token_operador}}
+
+
+###############################################################################
+# 09 — CICLO DE VIDA: AGREGAR COMENTARIO
+###############################################################################
+
+### 09.01 — Técnico agrega comentario al incidente
+# Esperado: 204 No Content
+POST {{base_url}}/requerimientos/{{id_incidente}}/comentarios
+Authorization: Bearer {{token_tecnico}}
+Content-Type: application/json
+
+{
+  "contenido": "Identifiqué el problema: el servidor SMTP tiene el puerto 25 bloqueado."
+}
+
+###
+
+### 09.02 — Operador agrega comentario
+# Esperado: 204 No Content
+POST {{base_url}}/requerimientos/{{id_incidente}}/comentarios
+Authorization: Bearer {{token_operador}}
+Content-Type: application/json
+
+{
+  "contenido": "Escalado correctamente. El técnico está trabajando en ello."
+}
+
+###
+
+### 09.03 — Verificar que los comentarios aparecen en el detalle
+# Esperado: 200 RequerimientoOut con array comentarios no vacío
+GET {{base_url}}/requerimientos/{{id_incidente}}
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 09.04 — ERROR: contenido vacío
+# Esperado: 422 Unprocessable Entity
+POST {{base_url}}/requerimientos/{{id_incidente}}/comentarios
+Authorization: Bearer {{token_tecnico}}
+Content-Type: application/json
+
+{
+  "contenido": ""
+}
+
+
+###############################################################################
+# 10 — CICLO DE VIDA: DERIVAR REQUERIMIENTO
+###############################################################################
+
+### 10.01 — Crear un segundo técnico para poder derivar
+# Esperado: 201 {"id": "<uuid>"}
+POST {{base_url}}/usuarios
+Content-Type: application/json
+
+{
+  "nombre": "Luis Técnico 2",
+  "email": "tecnico2@comunicarlos.com",
+  "rol": "tecnico",
+  "password": "Pass1234!"
+}
+
+###
+
+### 10.02 — Autenticar segundo técnico (para usar su token si se necesita)
+POST {{base_url}}/usuarios/autenticar
+Content-Type: application/json
+
+{
+  "email": "tecnico2@comunicarlos.com",
+  "password": "Pass1234!"
+}
+
+###
+
+### 10.03 — Derivar la solicitud al segundo técnico
+# (el técnico autenticado deriva a otro técnico)
+# Esperado: 204 No Content
+# Nota: reemplazar PEGAR_ID_TECNICO_2_AQUI con el id del segundo técnico
+POST {{base_url}}/requerimientos/{{id_solicitud}}/derivar
+Authorization: Bearer {{token_tecnico}}
+Content-Type: application/json
+
+{
+  "tecnico_destino_id": "PEGAR_ID_TECNICO_2_AQUI",
+  "motivo": "La solicitud requiere conocimiento de central VoIP del que no dispongo."
+}
+
+###
+
+### 10.04 — ERROR: derivar sin motivo (vacío)
+# Esperado: 422 Unprocessable Entity
+POST {{base_url}}/requerimientos/{{id_solicitud}}/derivar
+Authorization: Bearer {{token_tecnico}}
+Content-Type: application/json
+
+{
+  "tecnico_destino_id": "PEGAR_ID_TECNICO_2_AQUI",
+  "motivo": ""
+}
+
+
+###############################################################################
+# 11 — CICLO DE VIDA: RESOLVER REQUERIMIENTO
+###############################################################################
+
+### 11.01 — El técnico resuelve el incidente
+# (requiere estado "en_progreso")
+# Esperado: 204 No Content
+POST {{base_url}}/requerimientos/{{id_incidente}}/resolver
+Authorization: Bearer {{token_tecnico}}
+
+###
+
+### 11.02 — Verificar estado final del incidente
+# Esperado: 200 con estado "resuelto" y evento RESOLUCION en la auditoría
+GET {{base_url}}/requerimientos/{{id_incidente}}
+Authorization: Bearer {{token_operador}}
+
+###
+
+### 11.03 — ERROR: resolver un requerimiento ya resuelto
+# Esperado: 422 (TransicionEstadoInvalida)
+POST {{base_url}}/requerimientos/{{id_incidente}}/resolver
+Authorization: Bearer {{token_tecnico}}
+
+
+###############################################################################
+# 12 — SUPERVISOR: GESTIÓN DE USUARIOS
+###############################################################################
+
+### 12.01 — Listar usuarios como SUPERVISOR
+# Esperado: 200 [array completo de usuarios]
+GET {{base_url}}/usuarios
+Authorization: Bearer {{token_supervisor}}
+
+###
+
+### 12.02 — ERROR: técnico intenta listar usuarios (sin rol suficiente)
+# Esperado: 403 Forbidden
+GET {{base_url}}/usuarios
+Authorization: Bearer {{token_tecnico}}
+
+###
+
+### 12.03 — Desactivar un usuario (solo SUPERVISOR)
+# Esperado: 204 No Content
+# PRECAUCIÓN: esto desactiva la cuenta; el usuario no podrá autenticarse.
+# Descomentar solo si querés demostrar la funcionalidad.
+# DELETE {{base_url}}/usuarios/{{id_usuario_solicitante}}
+# Authorization: Bearer {{token_supervisor}}
+
+###
+
+### 12.04 — ERROR: operador intenta desactivar (sin rol SUPERVISOR)
+# Esperado: 403 Forbidden
+DELETE {{base_url}}/usuarios/{{id_usuario_solicitante}}
+Authorization: Bearer {{token_operador}}
+
+
+###############################################################################
+# 13 — TOKEN INVÁLIDO / EXPIRADO
+###############################################################################
+
+### 13.01 — Token malformado
+# Esperado: 401 Unauthorized
+GET {{base_url}}/requerimientos
+Authorization: Bearer esto.no.es.un.jwt.valido
+
+###
+
+### 13.02 — Sin header Authorization en ruta protegida
+# Esperado: 401 Unauthorized
+GET {{base_url}}/requerimientos
+
+###
+
+### 13.03 — Token de usuario inexistente (firmado con la clave correcta pero sub inválido)
+# No se puede demostrar fácilmente desde REST Client sin generar el JWT manualmente.
+# Cubierto por test unitario: test_token_firmado_con_clave_distinta_lanza_error

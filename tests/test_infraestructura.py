@@ -1,15 +1,14 @@
-"""Tests de integración para la capa de infraestructura SQLAlchemy.
+"""Tests de integración para la capa de infraestructura MongoDB.
 
-Tests de caja negra: no prueban detalles internos de ORM sino el contrato
-público de los repositorios (guardar / obtener / listar, etc.).
+Tests de caja negra: no prueban detalles internos de la persistencia sino
+el contrato público de los repositorios (guardar / obtener / listar, etc.).
 
-Cada clase de test crea su propio engine SQLite en memoria para mantener
-completo aislamiento entre tests y no afectar la base de datos de aplicación.
+Cada clase de test crea su propia base de datos mongomock en memoria para
+mantener completo aislamiento entre tests y no afectar la base de producción.
 
 Diseño:
-  - ``setUpClass`` crea engine + tablas una vez por clase de test.
-  - ``setUp`` abre una sesión fresca antes de cada test.
-  - ``tearDown`` cierra la sesión y hace rollback implícito.
+  - ``setUpClass`` crea un MongoClient mongomock + database una vez por clase.
+  - ``setUp`` limpia las colecciones antes de cada test.
 """
 
 from __future__ import annotations
@@ -17,13 +16,11 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import mongomock
 
 from app.compartido.dominio import RolUsuario
-from app.infraestructura.database import Base, init_db
-from app.infraestructura.repo_usuarios import RepositorioUsuarioSQL
-from app.infraestructura.repo_requerimientos import RepositorioRequerimientoSQL
+from app.infraestructura.repo_usuarios import RepositorioUsuarioMongo
+from app.infraestructura.repo_requerimientos import RepositorioRequerimientoMongo
 from app.requerimientos.dominio import (
     CategoriaIncidente,
     CategoriaSolicitud,
@@ -85,29 +82,17 @@ def _solicitud(**kwargs) -> Solicitud:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class TestRepositorioUsuarioSQL(unittest.TestCase):
-    """Contrato del RepositorioUsuarioSQL contra SQLite en memoria."""
+class TestRepositorioUsuarioMongo(unittest.TestCase):
+    """Contrato del RepositorioUsuarioMongo contra mongomock en memoria."""
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.engine = create_engine(
-            "sqlite:///:memory:", connect_args={"check_same_thread": False}
-        )
-        # Importar modelos para que Base.metadata los conozca
-        import app.infraestructura.modelos_orm  # noqa: F401
-        Base.metadata.create_all(cls.engine)
-        cls.SessionFactory = sessionmaker(bind=cls.engine)
+        cls.client = mongomock.MongoClient()
+        cls.db = cls.client["test_usuarios"]
 
     def setUp(self) -> None:
-        self.session = self.SessionFactory()
-        self.repo = RepositorioUsuarioSQL(self.session)
-        # Limpiar tablas antes de cada test para aislamiento
-        from app.infraestructura.modelos_orm import UsuarioORM
-        self.session.query(UsuarioORM).delete()
-        self.session.commit()
-
-    def tearDown(self) -> None:
-        self.session.close()
+        self.db.drop_collection("usuarios")
+        self.repo = RepositorioUsuarioMongo(self.db)
 
     # ── guardar + obtener por id ─────────────────────────────────────────────
 
@@ -192,30 +177,17 @@ class TestRepositorioUsuarioSQL(unittest.TestCase):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class TestRepositorioRequerimientoSQL(unittest.TestCase):
-    """Contrato del RepositorioRequerimientoSQL contra SQLite en memoria."""
+class TestRepositorioRequerimientoMongo(unittest.TestCase):
+    """Contrato del RepositorioRequerimientoMongo contra mongomock en memoria."""
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.engine = create_engine(
-            "sqlite:///:memory:", connect_args={"check_same_thread": False}
-        )
-        import app.infraestructura.modelos_orm  # noqa: F401
-        Base.metadata.create_all(cls.engine)
-        cls.SessionFactory = sessionmaker(bind=cls.engine)
+        cls.client = mongomock.MongoClient()
+        cls.db = cls.client["test_requerimientos"]
 
     def setUp(self) -> None:
-        self.session = self.SessionFactory()
-        self.repo = RepositorioRequerimientoSQL(self.session)
-        # Limpiar tablas antes de cada test para aislamiento total
-        from app.infraestructura.modelos_orm import ComentarioORM, EventoORM, RequerimientoORM
-        self.session.query(ComentarioORM).delete()
-        self.session.query(EventoORM).delete()
-        self.session.query(RequerimientoORM).delete()
-        self.session.commit()
-
-    def tearDown(self) -> None:
-        self.session.close()
+        self.db.drop_collection("requerimientos")
+        self.repo = RepositorioRequerimientoMongo(self.db)
 
     # ── Incidente: guardar + obtener ─────────────────────────────────────────
 

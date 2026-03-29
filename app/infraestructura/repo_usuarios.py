@@ -1,24 +1,24 @@
-"""Implementación SQLAlchemy del repositorio de usuarios.
+"""Implementación MongoDB del repositorio de usuarios.
 
-Traduce entre la entidad de dominio ``Usuario`` y el modelo ORM ``UsuarioORM``.
+Traduce entre la entidad de dominio ``Usuario`` y documentos MongoDB.
 La lógica de negocio permanece cero: este módulo solo serializa/deserializa.
 
 Patrón anti-corrupción:
-    ``_orm_a_dominio`` reconstruye la entidad con todos sus campos, incluyendo
+    ``_doc_a_dominio`` reconstruye la entidad con todos sus campos, incluyendo
     los privados, sin pasar por el constructor de dominio más de una vez.
-    No hay eventos en Usuario, por lo que la reconstrucción es directa.
 """
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 
 from app.compartido.dominio import RolUsuario
-from app.infraestructura.modelos_orm import UsuarioORM
 from app.usuarios.dominio import Usuario
 from app.usuarios.repositorio import RepositorioUsuario
+
+_COLECCION = "usuarios"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -26,32 +26,32 @@ from app.usuarios.repositorio import RepositorioUsuario
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _orm_a_dominio(row: UsuarioORM) -> Usuario:
-    """Reconstruye un ``Usuario`` de dominio a partir de una fila ORM."""
+def _doc_a_dominio(doc: dict[str, Any]) -> Usuario:
+    """Reconstruye un ``Usuario`` de dominio a partir de un documento MongoDB."""
     return Usuario(
-        id=row.id,
-        nombre=row.nombre,
-        email=row.email,
-        rol=RolUsuario(row.rol),
-        password_hash=row.password_hash,
-        activo=row.activo,
-        fecha_creacion=row.fecha_creacion,
-        ultimo_acceso=row.ultimo_acceso,
+        id=doc["_id"],
+        nombre=doc["nombre"],
+        email=doc["email"],
+        rol=RolUsuario(doc["rol"]),
+        password_hash=doc["password_hash"],
+        activo=doc["activo"],
+        fecha_creacion=doc.get("fecha_creacion"),
+        ultimo_acceso=doc.get("ultimo_acceso"),
     )
 
 
-def _dominio_a_orm(usuario: Usuario) -> UsuarioORM:
-    """Crea un ``UsuarioORM`` a partir de la entidad de dominio."""
-    return UsuarioORM(
-        id=usuario.id,
-        nombre=usuario.nombre,
-        email=usuario.email,
-        rol=usuario.rol.value,
-        password_hash=usuario.password_hash,
-        activo=usuario.activo,
-        fecha_creacion=usuario.fecha_creacion,
-        ultimo_acceso=usuario.ultimo_acceso,
-    )
+def _dominio_a_doc(usuario: Usuario) -> dict[str, Any]:
+    """Serializa un ``Usuario`` de dominio a documento MongoDB."""
+    return {
+        "_id": usuario.id,
+        "nombre": usuario.nombre,
+        "email": usuario.email,
+        "rol": usuario.rol.value,
+        "password_hash": usuario.password_hash,
+        "activo": usuario.activo,
+        "fecha_creacion": usuario.fecha_creacion,
+        "ultimo_acceso": usuario.ultimo_acceso,
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -59,35 +59,27 @@ def _dominio_a_orm(usuario: Usuario) -> UsuarioORM:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class RepositorioUsuarioSQL(RepositorioUsuario):
-    """Repositorio de usuarios respaldado por SQLAlchemy.
+class RepositorioUsuarioMongo(RepositorioUsuario):
+    """Repositorio de usuarios respaldado por MongoDB (pymongo).
 
-    Cada instancia recibe una sesión activa.  El ciclo de vida de la
-    sesión (commit / rollback / close) es responsabilidad de quien
-    inyecta la sesión (``app.deps.get_db``).
+    Cada instancia recibe una referencia a la ``Database`` pymongo activa.
     """
 
-    def __init__(self, session: Session) -> None:
-        self._session = session
+    def __init__(self, db: Database) -> None:
+        self._col = db[_COLECCION]
 
     def guardar(self, usuario: Usuario) -> None:
-        """Inserta o actualiza un usuario (upsert vía merge)."""
-        orm = _dominio_a_orm(usuario)
-        self._session.merge(orm)
-        self._session.commit()
+        """Inserta o actualiza un usuario (upsert vía replace_one)."""
+        doc = _dominio_a_doc(usuario)
+        self._col.replace_one({"_id": doc["_id"]}, doc, upsert=True)
 
     def obtener_por_id(self, usuario_id: str) -> Optional[Usuario]:
-        row = self._session.get(UsuarioORM, usuario_id)
-        return _orm_a_dominio(row) if row else None
+        doc = self._col.find_one({"_id": usuario_id})
+        return _doc_a_dominio(doc) if doc else None
 
     def obtener_por_email(self, email: str) -> Optional[Usuario]:
-        row = (
-            self._session.query(UsuarioORM)
-            .filter(UsuarioORM.email == email)
-            .first()
-        )
-        return _orm_a_dominio(row) if row else None
+        doc = self._col.find_one({"email": email})
+        return _doc_a_dominio(doc) if doc else None
 
     def listar(self) -> list[Usuario]:
-        rows = self._session.query(UsuarioORM).all()
-        return [_orm_a_dominio(r) for r in rows]
+        return [_doc_a_dominio(doc) for doc in self._col.find()]

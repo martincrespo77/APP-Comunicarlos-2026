@@ -1,12 +1,14 @@
 """Paquete de infraestructura concreta.
 
-Contiene:
-  - database.py       → engine SQLAlchemy, Base ORM, init_db
-  - modelos_orm.py    → tablas ORM (sin lógica de negocio)
-  - repo_usuarios.py  → implementación SQL de RepositorioUsuario
-  - repo_requerimientos.py → implementación SQL de RepositorioRequerimiento
+Contiene las implementaciones MongoDB de los repositorios y la configuración
+de conexión a la base de datos.
 
-Regla de dependencias:
+Módulos:
+  - database.py            → conexión MongoClient, init de índices
+  - repo_usuarios.py       → RepositorioUsuarioMongo
+  - repo_requerimientos.py → RepositorioRequerimientoMongo
+
+Regla de dependencias (invariante):
   Este paquete puede importar desde ``app.usuarios.*``, ``app.requerimientos.*``
   y ``app.config``, pero NUNCA al revés.
   El dominio y los servicios no conocen este paquete.

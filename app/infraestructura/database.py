@@ -1,89 +1,62 @@
-"""Configuración del motor SQLAlchemy.
+"""Conexión MongoDB centralizada.
 
-Centraliza la creación del engine, la clase Base para los modelos ORM
-y la función ``init_db`` que crea tablas al arrancar.
+Gestiona el ciclo de vida del ``MongoClient`` y expone la base de datos
+a los repositorios concretos.
 
 Diseño:
-  - Engine configurable vía ``DATABASE_URL`` en ``app.config``.
-  - Un único ``Base`` compartido por todos los modelos ORM del proyecto.
-  - ``init_db`` es idempotente: CREATE TABLE IF NOT EXISTS.
-  - ``get_session_factory`` retorna un ``sessionmaker`` listo para usar.
+  - ``conectar()`` se llama una sola vez desde el lifespan de ``main.py``.
+  - ``get_database()`` es el punto de acceso para dependencias y repos.
+  - ``desconectar()`` se llama al detener el servidor.
+  - ``_crear_indices()`` crea índices idempotentes al arrancar.
 """
 
 from __future__ import annotations
 
-from sqlalchemy import create_engine as _sa_create_engine
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from pymongo import MongoClient
+from pymongo.database import Database
+
+_client: MongoClient | None = None
+_db: Database | None = None
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-#  Base ORM compartida
-# ──────────────────────────────────────────────────────────────────────────────
+def conectar(mongodb_url: str, db_name: str) -> Database:
+    """Crea el MongoClient y selecciona la base de datos.
 
-
-class Base(DeclarativeBase):
-    """Clase base para todos los modelos ORM del proyecto."""
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-#  Factories
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-def crear_engine(database_url: str | None = None) -> Engine:
-    """Crea el engine SQLAlchemy a partir de la configuración.
-
-    Args:
-        database_url: URL de conexión.  Si es ``None``, se lee de
-            ``app.config.get_settings().DATABASE_URL``.
-
-    Notes:
-        - Para SQLite se agrega ``check_same_thread=False`` para que el
-          engine pueda usarse desde múltiples threads (necesario en FastAPI).
-        - ``echo=False`` en producción; cambiar a ``True`` para depurar SQL.
+    Debe llamarse una sola vez al arrancar (lifespan de main.py).
+    Retorna la instancia ``Database`` para conveniencia del caller.
     """
-    if database_url is None:
-        from app.config import get_settings
-        database_url = get_settings().DATABASE_URL
-
-    connect_args: dict = {}
-    if database_url.startswith("sqlite"):
-        connect_args["check_same_thread"] = False
-
-    return _sa_create_engine(database_url, connect_args=connect_args, echo=False)
+    global _client, _db
+    _client = MongoClient(mongodb_url)
+    _db = _client[db_name]
+    _crear_indices(_db)
+    return _db
 
 
-def init_db(engine: Engine) -> None:
-    """Crea todas las tablas definidas en los modelos ORM (idempotente).
+def desconectar() -> None:
+    """Cierra el MongoClient liberando conexiones del pool."""
+    global _client, _db
+    if _client is not None:
+        _client.close()
+    _client = None
+    _db = None
 
-    Debe llamarse al arrancar la aplicación (lo hace el lifespan de main.py).
 
-    Estrategia MVP — ``create_all``:
-        Esta función usa ``Base.metadata.create_all``, que crea las tablas
-        si NO existen pero NO modifica columnas, índices ni restricciones
-        existentes.  Es correcta para desarrollo y para el primer deploy.
+def get_database() -> Database:
+    """Retorna la base de datos activa.
 
-        LIMITACIÓN IMPORTANTE:
-        Ante cualquier cambio de esquema posterior (nueva columna, renombrado,
-        cambio de tipo) ``create_all`` no ejecuta nada.  Para producción con
-        datos persistentes se debe instalar Alembic y reemplazar esta función
-        por ``alembic upgrade head``.
-
-        Pasos para migrar a Alembic cuando sea necesario:
-            pip install alembic
-            alembic init alembic
-            # apuntar env.py a app.infraestructura.database.Base
-            alembic revision --autogenerate -m "initial"
-            alembic upgrade head
-
-        Ver: https://alembic.sqlalchemy.org/en/latest/tutorial.html
+    Raises ``RuntimeError`` si ``conectar()`` no fue invocado.
     """
-    # Importar para registrar los modelos en Base.metadata
-    from app.infraestructura import modelos_orm  # noqa: F401
-    Base.metadata.create_all(bind=engine)
+    if _db is None:
+        raise RuntimeError(
+            "Base de datos no inicializada. "
+            "Llamar a conectar() desde el lifespan antes de usar get_database()."
+        )
+    return _db
 
 
-def get_session_factory(engine: Engine) -> sessionmaker[Session]:
-    """Retorna un factory de sesiones ligado al engine dado."""
-    return sessionmaker(bind=engine, autocommit=False, autoflush=False)
+def _crear_indices(db: Database) -> None:
+    """Crea índices necesarios (idempotente)."""
+    db["usuarios"].create_index("email", unique=True)
+    db["requerimientos"].create_index("solicitante_id")
+    db["requerimientos"].create_index("tecnico_asignado_id")
+    db["requerimientos"].create_index("estado")

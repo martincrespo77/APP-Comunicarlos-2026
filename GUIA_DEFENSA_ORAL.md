@@ -10,7 +10,7 @@ El proyecto implementa una **Arquitectura en Capas estricta**, fuertemente inspi
 Está dividida conceptualmente en tres aros concéntricos:
 1. **Dominio (Interior)**: Reglas de negocio puras, entidades y excepciones core. No sabe que existe internet ni bases de datos.
 2. **Aplicación (Medio)**: Los "Servicios" o "Casos de Uso". Orquestan la operación (buscan en DB, ejecutan lógica de dominio, guardan en DB), protegiendo al dominio del mundo exterior.
-3. **Infraestructura / Presentación (Exterior)**: Pydantic, FastAPI, SQLAlchemy, Autenticación. Es el detalle de cómo entran y salen los datos.
+3. **Infraestructura / Presentación (Exterior)**: Pydantic, FastAPI, pymongo (MongoDB), Autenticación. Es el detalle de cómo entran y salen los datos.
 
 **Regla de Oro**: Las dependencias *siempre* apuntan hacia adentro. Infraestructura conoce a Dominio, pero Dominio no conoce a Infraestructura.
 
@@ -25,11 +25,11 @@ Está dividida conceptualmente en tres aros concéntricos:
 ---
 
 ## 3. ¿Por qué el Dominio quedó "Puro"?
-*Es probable que el profesor pregunte por qué separaste los modelos de SQLAlchemy/Pydantic de las clases puras de Python.*
+*Es probable que el profesor pregunte por qué separaste los schemas Pydantic y la persistencia MongoDB de las clases puras de Python.*
 
 **Respuesta a defender:** 
-"El dominio es el corazón de la cooperativa. Si el día de mañana queremos cambiar FastAPI por otro framework HTTP, o migrar de SQLite a PostgreSQL o incluso MongoDB, las reglas de cómo un técnico 'deriva' un ticket no cambian en absoluto. 
-Tener Pydantic en el dominio nos ataría a validaciones JSON web; y usar SQLAlchemy en las entidades nos ataría a tablas relacionales. Mantenerlo en 'Python Puro' asegura extrema facilidad para crear pruebas unitarias sin levantar motores de base de datos, porque las reglas de negocio están 100% aisladas."
+"El dominio es el corazón de la cooperativa. Si el día de mañana queremos cambiar FastAPI por otro framework HTTP, o migrar de MongoDB a otra base de datos, las reglas de cómo un técnico 'deriva' un ticket no cambian en absoluto. De hecho, el proyecto nació con SQLAlchemy/SQLite y se migró completamente a MongoDB sin tocar una sola línea del dominio ni de los servicios. Esa migración fue la prueba concreta de que la arquitectura hexagonal funcionó.
+Tener Pydantic en el dominio nos ataría a validaciones JSON web; y usar pymongo en las entidades nos ataría a documentos MongoDB. Mantenerlo en 'Python Puro' asegura extrema facilidad para crear pruebas unitarias sin levantar motores de base de datos, porque las reglas de negocio están 100% aisladas."
 
 ---
 
@@ -49,21 +49,22 @@ Esta es la ruta exacta (Flujo de Control) de una petición web en tu app:
    - Llama al Repositorio para buscar el usuario o requerimiento en la BD.
    - Llama al método de la entidad del Dominio (`req.asignar_tecnico()`).
    - Le dice al Repositorio que guarde la entidad modificada.
-4. **Repositorios (Infraestructura)**: Reciben el mandato del Servicio, utilizan SQLAlchemy, mapean el objeto de Dominio a una fila SQL, y hacen el `commit()` en la base de datos real.
+4. **Repositorios (Infraestructura)**: Reciben el mandato del Servicio, utilizan pymongo, serializan el objeto de Dominio a un documento MongoDB, y hacen el `replace_one()` / `find()` en la base de datos real.
 
 ---
 
-## 6. Qué cubren los tests (384 Tests passing)
+## 6. Qué cubren los tests (394 Tests passing)
 La suite de pruebas es un punto fortísimo de este proyecto. Se pueden dividir en dos bloques:
 - **Test Unitarios del Dominio (La mayoría)**: Prueban las reglas de negocio base creando objetos en memoria. Ej: ¿Qué pasa si un Técnico intenta "asignarse" a sí mismo (debería fallar, es rol de Operador)? 
-- **Test de Integración (Routers/Servicios)**: Usando el `TestClient` (`httpx`) de FastAPI y una base SQLite en memoria, verifican que el endpoint HTTP funcione de principio a fin (devuelva un HTTP 200 o HTTP 400), probando la base de datos, Pydantic y el Router a la vez, sin necesidad de Docker ni de enviar correos reales.
+- **Test de Integración (Routers/Servicios)**: Usando el `TestClient` (`httpx`) de FastAPI y repositorios fake en memoria, verifican que el endpoint HTTP funcione de principio a fin (devuelva un HTTP 200 o HTTP 400), probando Pydantic y el Router a la vez, sin necesidad de Docker ni de enviar correos reales. Los tests de infraestructura usan `mongomock` (MongoDB en memoria) para verificar los repositorios concretos.
 
 ---
 
-## 7. Cómo defender Docker, SQLite y Bruno
-- **¿Por qué Docker?** "Garantiza un ambiente estandarizado. Al profesor o a cualquier evaluador le basta ejecutar `docker compose up` y el sistema levanta garantizando la misma versión de base de datos y Python. Es estándar en la industria ("works on my machine")."
+## 7. Cómo defender Docker, MongoDB y Bruno
+- **¿Por qué Docker?** "Garantiza un ambiente estandarizado. Al profesor o a cualquier evaluador le basta ejecutar `docker compose up` y el sistema levanta la API junto con MongoDB, garantizando la misma versión de base de datos y Python. Es estándar en la industria ('works on my machine')."
 - **¿Por qué Bruno (y no Postman)?** "Bruno es de código abierto, ultraligero y guarda la colección directamente en archivos `.bru` estructurados (en lugar de un JSON invisible). Esto permite que mi colección viva dentro del repositorio Git junto con mi código, pudiendo versionarla y auditarla como código normal."
-- **¿Por qué SQLite como Base de Datos?** "Decisión consciente para un MVP (Minimum Viable Product) académico. SQLite nos da un motor relacional sólido sin requerir configuración externa pesada, facilitando enormemente la corrección y pruebas del docente. La ventaja de nuestra Arquitectura Hexagonal es que migrar a PostgreSQL (dejado propuesto en el `docker-compose.yml`) solo requiere cambiar una cadena de texto en un archivo `.env`, el código de la app Python permanece intacto."
+- **¿Por qué MongoDB como Base de Datos?** "MongoDB como base documental permite almacenar el agregado completo (requerimiento + eventos + comentarios) en un solo documento, lo que garantiza escrituras atómicas sin transacciones complejas. El esquema flexible facilita la evolución del modelo sin migraciones. Además, `docker compose up` levanta MongoDB automáticamente junto con la API, sin configuración extra para el evaluador."
+- **¿Por qué se migró de SQLite/SQLAlchemy a MongoDB?** "El proyecto nació con SQLite como MVP rápido. La migración a MongoDB fue una decisión deliberada que además sirvió como prueba concreta de que la Arquitectura Hexagonal funciona: solo se tocaron 7 archivos de infraestructura, sin modificar una sola línea del dominio, servicios ni routers. Los 394 tests siguieron pasando sin cambios."
 
 ---
 
@@ -73,13 +74,13 @@ La suite de pruebas es un punto fortísimo de este proyecto. Se pueden dividir e
 **Sugerencia de respuesta:**
 "Si esto fuera un CRUD básico (Crear, Leer, Actualizar, Borrar) como un blog, sí, sería sobre-ingeniería. Pero una Mesa de Ayuda involucra máquinas de estado complejas: permisos cruzados, derivaciones, re-asignaciones y registro de eventos. Escribir esa lógica estructurada en un 'controlador web acoplado a SQL' se vuelve espagueti rápidamente. Dividirlo paga su precio inmediatamente en facilidad de testing: hoy tenemos casi 400 pruebas porque es facilísimo testear componentes aislados."
 
-**Pregunta 2:** *"Si uso SQLite en vez de Postgres, ¿qué pasa si 5 operadores guardan un requerimiento al mismo tiempo en producción?"*
+**Pregunta 2:** *"¿Qué pasa si 5 operadores guardan un requerimiento al mismo tiempo en producción?"*
 **Sugerencia de respuesta:**
-"Fallaría debido a los bloqueos de escritura (locks) inherentes a SQLite si hay concurrencia pesada. Soy consciente de esa limitación técnica: SQLite fue elegido **exclusivamente como base embebida para facilitar el despliegue del trabajo práctico**. La arquitectura prevé esto: nuestros repositorios inyectan sesiones de SQLAlchemy agnósticas, preparadas para un motor robusto como PostgreSQL con sólo enchufarlo a nivel infraestructura."
+"MongoDB maneja la concurrencia de escritura de forma nativa. Cada requerimiento se almacena como un documento atómico completo (con eventos y comentarios embebidos), por lo que `replace_one()` es una operación atómica a nivel de documento. No hay riesgo de locks de archivo como con SQLite ni necesidad de transacciones multi-tabla como con un motor relacional. Para escenarios de alta concurrencia, MongoDB escala horizontalmente con replica sets."
 
-**Pregunta 3:** *"En `servicios.py`, para asignar un técnico, veo que buscás el ticket en DB, lo cargás a memoria, le aplicás la operación y luego lo volvés a grabar. ¿No es más eficiente hacer un simple `UPDATE requerimientos SET tecnico_id = X` directo en un query SQL?"*
+**Pregunta 3:** *"En `servicios.py`, para asignar un técnico, veo que buscás el ticket en DB, lo cargás a memoria, le aplicás la operación y luego lo volvés a grabar. ¿No es más eficiente hacer un `update_one({$set: {tecnico_id: X}})` directo en MongoDB?"*
 **Sugerencia de respuesta:**
-"Hacer un UPDATE directo es más rápido para el CPU, sí, pero es un anti-patrón en DDD llamado 'Data-Driven Design'. Si hago el UPDATE directo, me salto **todas** las validaciones de negocio de nuestra entidad (como comprobar si el requerimiento estaba bloqueado, y evitar que se genere el Evento de Auditoría obligatorio). Preferimos ceder unos microsegundos de RAM y CPU para garantizar absoluta consistencia del negocio mediante el uso del Aggregate Root."
+"Hacer un update directo es más rápido para el CPU, sí, pero es un anti-patrón en DDD llamado 'Data-Driven Design'. Si hago el update directo, me salto **todas** las validaciones de negocio de nuestra entidad (como comprobar si el requerimiento estaba bloqueado, y evitar que se genere el Evento de Auditoría obligatorio). Preferimos ceder unos microsegundos de RAM y CPU para garantizar absoluta consistencia del negocio mediante el uso del Aggregate Root."
 
 **Pregunta 4:** *"¿Por qué separo Incidentes de Solicitudes si usan básicamente la misma tabla/lógica?"*
 **Sugerencia de respuesta:**

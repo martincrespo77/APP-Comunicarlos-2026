@@ -16,9 +16,12 @@ __pycache__/
 dist/
 build/
 
-# ── Archivos de base de datos locales ────────────────────────────────────────
+# ── Archivos residuales de bases de datos ──────────────────────────────
+# MongoDB no genera archivos locales; esta sección queda por higiene general.
+# dump/ se ignora por si se usan mongodump u otras herramientas de backup local.
+dump/
 *.db
-*.sqlite3
+*.sqlite
 
 # ── Pytest ────────────────────────────────────────────────────────────────────
 .pytest_cache/

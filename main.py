@@ -29,30 +29,18 @@ from app.usuarios.router import router as usuarios_router
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
     """Inicializa la infraestructura al arrancar y la libera al detener.
 
-    Startup
-    -------
-    - Crea el engine SQLAlchemy a partir de ``DATABASE_URL``.
-    - Ejecuta ``Base.metadata.create_all`` y lo registra via ``_set_engine``.
-    - Expone el engine en ``app.state.engine`` para inspección / health checks.
-
-    Nota sobre migraciones (estrategia MVP):
-        ``create_all`` crea las tablas si no existen pero NO modifica columnas
-        ni ejecuta migraciones.  Para producción con datos persistentes se debe
-        sustituir por Alembic (``alembic upgrade head``) antes del primer deploy
-        real.  Ver: https://alembic.sqlalchemy.org/
+    Startup: conecta al MongoClient y crea índices.
+    Shutdown: cierra el MongoClient liberando conexiones del pool.
     """
-    from app.infraestructura.database import crear_engine, init_db
-    from app.deps import _set_engine
+    from app.config import get_settings
+    from app.infraestructura.database import conectar, desconectar
 
-    engine = crear_engine()
-    init_db(engine)
-    _set_engine(engine)
-    app.state.engine = engine
+    settings = get_settings()
+    conectar(settings.MONGODB_URL, settings.MONGODB_DB_NAME)
 
     yield  # ← aquí corre la app
 
-    # Shutdown: liberar conexiones del pool
-    engine.dispose()
+    desconectar()
 
 
 # ── Aplicación ────────────────────────────────────────────────────────

@@ -12,11 +12,11 @@ El proyecto sigue una arquitectura en capas, con separación estricta entre domi
 Presentación  →  router.py + schemas.py       (FastAPI, Pydantic v2)
 Aplicación    →  servicios.py                 (casos de uso, orquestación)
 Dominio       →  dominio.py + repositorio.py  (entidades, lógica de negocio, interfaces)
-Infraestructura → infraestructura/            (SQLAlchemy, implementaciones de repositorios)
+Infraestructura → infraestructura/            (pymongo, implementaciones de repositorios)
 Compartido    →  compartido/dominio.py        (shared kernel: RolUsuario)
 ```
 
-Las dependencias apuntan siempre hacia adentro: la infraestructura implementa las interfaces definidas en el dominio; los servicios no conocen SQLAlchemy.
+Las dependencias apuntan siempre hacia adentro: la infraestructura implementa las interfaces definidas en el dominio; los servicios no conocen pymongo.
 
 ---
 
@@ -28,11 +28,11 @@ Las dependencias apuntan siempre hacia adentro: la infraestructura implementa la
 | `app/requerimientos/` | Incidentes y solicitudes con ciclo de vida completo y auditoría de eventos |
 | `app/notificaciones/` | Patrón Observer puro (dominio); `DespachadorEventos` + `ObservadorRequerimiento` |
 | `app/compartido/` | Shared kernel: enum `RolUsuario` usado por todos los módulos |
-| `app/infraestructura/` | Engine SQLAlchemy, modelos ORM, implementaciones de repositorios |
+| `app/infraestructura/` | Adaptador MongoDB, implementaciones de repositorios |
 | `app/auth.py` | Generación y decodificación de JWT (python-jose) |
 | `app/config.py` | Configuración tipada con pydantic-settings (lectura desde `.env`) |
-| `app/deps.py` | Dependencias FastAPI: sesión DB, servicios, usuario autenticado actual |
-| `main.py` | Punto de entrada: instancia `FastAPI`, monta routers, gestiona lifespan SQLAlchemy |
+| `app/deps.py` | Dependencias FastAPI: conexión MongoDB, servicios, usuario autenticado actual |
+| `main.py` | Punto de entrada: instancia `FastAPI`, monta routers, gestiona lifespan MongoDB |
 
 ---
 
@@ -59,10 +59,11 @@ ALGORITHM=HS256
 # Tiempo de expiración del token en minutos
 EXPIRACION_MINUTOS=60
 
-# URL de conexión a la base de datos
-DATABASE_URL=sqlite:///./mesa_de_ayuda.db
-# En Docker:     DATABASE_URL=sqlite:////data/mesa_de_ayuda.db
-# En PostgreSQL: DATABASE_URL=postgresql://usuario:password@host:5432/mesa_de_ayuda
+# URL de conexión a MongoDB
+MONGODB_URL=mongodb://localhost:27017
+
+# Nombre de la base de datos MongoDB
+MONGODB_DB_NAME=mesa_de_ayuda
 ```
 
 > El archivo `.env` está en `.gitignore` y nunca debe subirse al repositorio.
@@ -99,7 +100,7 @@ Documentación interactiva: `http://localhost:8000/docs` (Swagger UI).
 ```bash
 # 1. Configurar entorno
 copy .env.example .env
-# Editar .env: usar DATABASE_URL=sqlite:////data/mesa_de_ayuda.db
+# Editar .env: configurar MONGODB_URL y MONGODB_DB_NAME
 
 # 2. Construir y levantar
 docker compose up --build
@@ -108,9 +109,9 @@ docker compose up --build
 docker compose down
 ```
 
-El servicio expone el puerto `8000`. La base de datos SQLite se persiste en el volumen nombrado `sqlite_data`.
+El servicio expone el puerto `8000`. Los datos de MongoDB se persisten en el volumen `mongo_data`.
 
-El `docker-compose.yml` incluye un bloque comentado para migrar a PostgreSQL 16 sin modificar el código de la aplicación.
+> `docker compose up` levanta automáticamente MongoDB 7 + la API. No se requiere configuración adicional.
 
 ---
 
@@ -130,9 +131,9 @@ pytest tests/test_requerimientos_dominio.py
 pytest --collect-only -q
 ```
 
-Los tests usan `httpx` como cliente ASGI (sin levantar servidor real) y una base SQLite en memoria. No requieren `.env` ni servicios externos.
+Los tests usan `httpx` como cliente ASGI (sin levantar servidor real). Los tests de dominio, servicios y routers no requieren base de datos real (usan repositorios en memoria). Los tests de infraestructura (`test_infraestructura.py`) usan MongoDB en memoria mediante `mongomock`.
 
-**Cobertura actual: 384 tests en 13 archivos — todos passing.**
+**Cobertura actual: 394 tests en 13 archivos — todos passing.**
 
 | Archivo | Tests |
 |---|---|
@@ -280,14 +281,14 @@ bruno/
 
 ---
 
-## Nota sobre la base de datos (decisión MVP)
+## Nota sobre la base de datos
 
-La aplicación usa **SQLite** con `Base.metadata.create_all(engine)` en el startup.
-Esta estrategia crea las tablas automáticamente si no existen y es apropiada para el contexto de entrega académica: elimina la necesidad de un motor de migraciones (Alembic) y simplifica el despliegue en un entorno de evaluación.
+La aplicación usa **MongoDB** como única base de datos.
+La conexión se establece al arrancar la aplicación mediante `pymongo.MongoClient`.
+Los índices necesarios se crean automáticamente si no existen.
 
-En un entorno de producción real se reemplazaría por:
-- Motor de base de datos dedicado (PostgreSQL)
-- Migraciones gestionadas con Alembic
+No se usa ningún ORM relacional ni motor de migraciones (SQLAlchemy, Alembic, PostgreSQL, SQLite).
+El úmico cambio necesario para apuntar a una instancia distinta de MongoDB es modificar `MONGODB_URL` en el `.env`.
 - La variable `DATABASE_URL` es el único punto de cambio necesario en el código
 
 ---

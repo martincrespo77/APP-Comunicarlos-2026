@@ -1,40 +1,27 @@
-"""Implementación SQLAlchemy del repositorio de requerimientos.
+"""Implementación MongoDB del repositorio de requerimientos.
 
 Traduce entre las entidades de dominio (``Incidente``, ``Solicitud``, value
-objects ``Evento``, ``Comentario``) y los modelos ORM correspondientes.
+objects ``Evento``, ``Comentario``) y documentos MongoDB.
 
-Decisión de diseño — Anti-corrupción layer:
-    El dominio usa entidades con atributos privados (``_eventos``,
-    ``_comentarios``, ``_eventos_dominio``).  Para reconstruir la entidad
-    desde la base de datos sin contaminar el dominio (no se agrega ningún
-    método al dominio), el repositorio asigna directamente esos atributos
-    privados tras construir la entidad con ``registrar_creacion=False``.
+Decisión de diseño — Documento embebido:
+    Cada requerimiento se almacena como un único documento con los arrays
+    ``eventos`` y ``comentarios`` incrustados.  Esto garantiza escrituras
+    atómicas sin necesidad de transacciones multi-documento.
 
-    Python no obliga el acceso privado en tiempo de ejecución para atributos
-    con un único guión (``_attr``); es solo una convención.  Esto es una
-    técnica estándar en capas de persistencia que deben reconstruir objetos
-    ricos sin duplicar eventos de auditoría.
-
-    Se evita el uso de ``__setattr__`` o ``__dict__`` directamente:
-    la asignación ``obj._attr = valor`` es Python idiomático para esto.
-
-Guarantía de consistencia:
-    Al guardar, la tabla ``requerimientos`` se actualiza con ``merge()``
-    y las tablas ``eventos`` / ``comentarios`` se sincronizan con un
-    delete-and-reinsert.  Es seguro porque el dominio garantiza que
-    eventos y comentarios son append-only (nunca se modifican ni borran).
-    La re-inserción es idempotente respecto a la vista de negocio.
+Anti-corrupción layer:
+    El dominio usa atributos privados (``_eventos``, ``_comentarios``,
+    ``_eventos_dominio``).  Para reconstruir la entidad desde la base de
+    datos sin contaminar el dominio, el repositorio asigna directamente
+    esos atributos tras construir la entidad con ``registrar_creacion=False``.
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 
 from app.compartido.dominio import RolUsuario
-from app.infraestructura.modelos_orm import ComentarioORM, EventoORM, RequerimientoORM
 from app.requerimientos.dominio import (
     CategoriaIncidente,
     CategoriaSolicitud,
@@ -50,135 +37,124 @@ from app.requerimientos.dominio import (
 )
 from app.requerimientos.repositorio import RepositorioRequerimiento
 
+_COLECCION = "requerimientos"
+
 
 # ──────────────────────────────────────────────────────────────────────────────
-#  Helpers de traducción  ORM → Dominio
+#  Helpers de traducción  Documento → Dominio
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _evento_orm_a_dominio(row: EventoORM) -> Evento:
+def _evento_doc_a_dominio(d: dict[str, Any]) -> Evento:
     return Evento(
-        tipo=TipoEvento(row.tipo),
-        actor_id=row.actor_id,
-        detalle=row.detalle,
-        id=row.id,
-        fecha=row.fecha,
+        tipo=TipoEvento(d["tipo"]),
+        actor_id=d["actor_id"],
+        detalle=d["detalle"],
+        id=d["id"],
+        fecha=d["fecha"],
     )
 
 
-def _comentario_orm_a_dominio(row: ComentarioORM) -> Comentario:
+def _comentario_doc_a_dominio(d: dict[str, Any]) -> Comentario:
     return Comentario(
-        autor_id=row.autor_id,
-        rol_autor=RolUsuario(row.rol_autor),
-        contenido=row.contenido,
-        id=row.id,
-        fecha=row.fecha,
+        autor_id=d["autor_id"],
+        rol_autor=RolUsuario(d["rol_autor"]),
+        contenido=d["contenido"],
+        id=d["id"],
+        fecha=d["fecha"],
     )
 
 
-def _requerimiento_orm_a_dominio(
-    row: RequerimientoORM,
-    eventos_rows: list[EventoORM],
-    comentarios_rows: list[ComentarioORM],
-) -> Requerimiento:
-    """Reconstruye el agregado Requerimiento desde sus filas ORM.
+def _doc_a_dominio(doc: dict[str, Any]) -> Requerimiento:
+    """Reconstruye el agregado Requerimiento desde un documento MongoDB.
 
     Usa ``registrar_creacion=False`` para evitar duplicar el evento CREACION.
     Luego restaura los atributos privados de historial directamente.
     """
-    estado = EstadoRequerimiento(row.estado)
+    estado = EstadoRequerimiento(doc["estado"])
 
-    if TipoRequerimiento(row.tipo) == TipoRequerimiento.INCIDENTE:
+    if TipoRequerimiento(doc["tipo"]) == TipoRequerimiento.INCIDENTE:
         req: Requerimiento = Incidente(
-            titulo=row.titulo,
-            descripcion=row.descripcion,
-            solicitante_id=row.solicitante_id,
-            urgencia=Urgencia(row.urgencia),
-            categoria=CategoriaIncidente(row.categoria),
-            id=row.id,
+            titulo=doc["titulo"],
+            descripcion=doc["descripcion"],
+            solicitante_id=doc["solicitante_id"],
+            urgencia=Urgencia(doc["urgencia"]),
+            categoria=CategoriaIncidente(doc["categoria"]),
+            id=doc["_id"],
             estado=estado,
-            operador_id=row.operador_id,
-            tecnico_asignado_id=row.tecnico_asignado_id,
-            fecha_creacion=row.fecha_creacion,
-            fecha_actualizacion=row.fecha_actualizacion,
-            registrar_creacion=False,  # no duplicar en reconstrucción
+            operador_id=doc.get("operador_id"),
+            tecnico_asignado_id=doc.get("tecnico_asignado_id"),
+            fecha_creacion=doc["fecha_creacion"],
+            fecha_actualizacion=doc["fecha_actualizacion"],
+            registrar_creacion=False,
         )
     else:
         req = Solicitud(
-            titulo=row.titulo,
-            descripcion=row.descripcion,
-            solicitante_id=row.solicitante_id,
-            categoria=CategoriaSolicitud(row.categoria),
-            id=row.id,
+            titulo=doc["titulo"],
+            descripcion=doc["descripcion"],
+            solicitante_id=doc["solicitante_id"],
+            categoria=CategoriaSolicitud(doc["categoria"]),
+            id=doc["_id"],
             estado=estado,
-            operador_id=row.operador_id,
-            tecnico_asignado_id=row.tecnico_asignado_id,
-            fecha_creacion=row.fecha_creacion,
-            fecha_actualizacion=row.fecha_actualizacion,
+            operador_id=doc.get("operador_id"),
+            tecnico_asignado_id=doc.get("tecnico_asignado_id"),
+            fecha_creacion=doc["fecha_creacion"],
+            fecha_actualizacion=doc["fecha_actualizacion"],
             registrar_creacion=False,
         )
 
     # Restaurar historial de auditoría (atributos privados convencionales)
-    req._eventos = [_evento_orm_a_dominio(e) for e in eventos_rows]
-    req._comentarios = [_comentario_orm_a_dominio(c) for c in comentarios_rows]
-    req._eventos_dominio = []  # ya fueron despachados al persistir
+    req._eventos = [_evento_doc_a_dominio(e) for e in doc.get("eventos", [])]
+    req._comentarios = [_comentario_doc_a_dominio(c) for c in doc.get("comentarios", [])]
+    req._eventos_dominio = []
 
     return req
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-#  Helpers de traducción  Dominio → ORM
+#  Helpers de traducción  Dominio → Documento
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _requerimiento_dominio_a_orm(req: Requerimiento) -> RequerimientoORM:
-    """Crea el ORM raíz a partir de la entidad de dominio."""
+def _dominio_a_doc(req: Requerimiento) -> dict[str, Any]:
+    """Serializa el agregado completo a un documento MongoDB."""
     es_incidente = req.tipo == TipoRequerimiento.INCIDENTE
 
-    return RequerimientoORM(
-        id=req.id,
-        tipo=req.tipo.value,
-        titulo=req.titulo,
-        descripcion=req.descripcion,
-        estado=req.estado.value,
-        solicitante_id=req.solicitante_id,
-        operador_id=req.operador_id,
-        tecnico_asignado_id=req.tecnico_asignado_id,
-        urgencia=req.urgencia.value if es_incidente else None,  # type: ignore[attr-defined]
-        categoria=(
-            req.categoria.value  # type: ignore[attr-defined]
-        ),
-        fecha_creacion=req.fecha_creacion,
-        fecha_actualizacion=req.fecha_actualizacion,
-    )
-
-
-def _eventos_dominio_a_orm(req: Requerimiento) -> list[EventoORM]:
-    return [
-        EventoORM(
-            id=ev.id,
-            requerimiento_id=req.id,
-            tipo=ev.tipo.value,
-            actor_id=ev.actor_id,
-            detalle=ev.detalle,
-            fecha=ev.fecha,
-        )
-        for ev in req.eventos
-    ]
-
-
-def _comentarios_dominio_a_orm(req: Requerimiento) -> list[ComentarioORM]:
-    return [
-        ComentarioORM(
-            id=co.id,
-            requerimiento_id=req.id,
-            autor_id=co.autor_id,
-            rol_autor=co.rol_autor.value,
-            contenido=co.contenido,
-            fecha=co.fecha,
-        )
-        for co in req.comentarios
-    ]
+    doc: dict[str, Any] = {
+        "_id": req.id,
+        "tipo": req.tipo.value,
+        "titulo": req.titulo,
+        "descripcion": req.descripcion,
+        "estado": req.estado.value,
+        "solicitante_id": req.solicitante_id,
+        "operador_id": req.operador_id,
+        "tecnico_asignado_id": req.tecnico_asignado_id,
+        "urgencia": req.urgencia.value if es_incidente else None,  # type: ignore[attr-defined]
+        "categoria": req.categoria.value,  # type: ignore[attr-defined]
+        "fecha_creacion": req.fecha_creacion,
+        "fecha_actualizacion": req.fecha_actualizacion,
+        "eventos": [
+            {
+                "id": ev.id,
+                "tipo": ev.tipo.value,
+                "actor_id": ev.actor_id,
+                "detalle": ev.detalle,
+                "fecha": ev.fecha,
+            }
+            for ev in req.eventos
+        ],
+        "comentarios": [
+            {
+                "id": co.id,
+                "autor_id": co.autor_id,
+                "rol_autor": co.rol_autor.value,
+                "contenido": co.contenido,
+                "fecha": co.fecha,
+            }
+            for co in req.comentarios
+        ],
+    }
+    return doc
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -186,136 +162,49 @@ def _comentarios_dominio_a_orm(req: Requerimiento) -> list[ComentarioORM]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class RepositorioRequerimientoSQL(RepositorioRequerimiento):
-    """Repositorio de requerimientos respaldado por SQLAlchemy.
+class RepositorioRequerimientoMongo(RepositorioRequerimiento):
+    """Repositorio de requerimientos respaldado por MongoDB (pymongo).
 
-    Estrategia de persistencia de colecciones:
-        eventos y comentarios son append-only en el dominio, pero por
-        simplicidad se re-sincronizan completos en cada ``guardar``:
-        se borran los hijos del requerimiento y se reinsertan todos.
-        Esto es seguro porque:
-        - El dominio nunca elimina ni modifica eventos/comentarios.
-        - La operación es idempotente.
-        - Con CASCADE DELETE, los hijos se eliminan automáticamente.
+    Estrategia de persistencia:
+        El agregado completo (requerimiento + eventos + comentarios) se
+        almacena como un único documento.  ``replace_one`` con ``upsert=True``
+        garantiza escrituras atómicas sin transacciones.
     """
 
-    def __init__(self, session: Session) -> None:
-        self._session = session
+    def __init__(self, db: Database) -> None:
+        self._col = db[_COLECCION]
 
     # ── Escritura ──────────────────────────────────────────────────────────
 
     def guardar(self, requerimiento: Requerimiento) -> None:
-        # 1. Upsert del requerimiento raíz
-        orm_req = _requerimiento_dominio_a_orm(requerimiento)
-        self._session.merge(orm_req)
-
-        # 2. Sincronizar eventos (re-insertar)
-        self._session.query(EventoORM).filter(
-            EventoORM.requerimiento_id == requerimiento.id
-        ).delete(synchronize_session=False)
-        for ev_orm in _eventos_dominio_a_orm(requerimiento):
-            self._session.add(ev_orm)
-
-        # 3. Sincronizar comentarios (re-insertar)
-        self._session.query(ComentarioORM).filter(
-            ComentarioORM.requerimiento_id == requerimiento.id
-        ).delete(synchronize_session=False)
-        for co_orm in _comentarios_dominio_a_orm(requerimiento):
-            self._session.add(co_orm)
-
-        self._session.commit()
+        doc = _dominio_a_doc(requerimiento)
+        self._col.replace_one({"_id": doc["_id"]}, doc, upsert=True)
 
     # ── Lecturas individuales ──────────────────────────────────────────────
 
     def obtener_por_id(self, requerimiento_id: str) -> Optional[Requerimiento]:
-        row = self._session.get(RequerimientoORM, requerimiento_id)
-        if row is None:
-            return None
-        return _requerimiento_orm_a_dominio(
-            row,
-            self._cargar_eventos(requerimiento_id),
-            self._cargar_comentarios(requerimiento_id),
-        )
+        doc = self._col.find_one({"_id": requerimiento_id})
+        return _doc_a_dominio(doc) if doc else None
 
     # ── Lecturas en lote ───────────────────────────────────────────────────
 
     def listar(self) -> list[Requerimiento]:
-        return self._listar_filas(
-            self._session.query(RequerimientoORM).all()
-        )
+        return [_doc_a_dominio(doc) for doc in self._col.find()]
 
     def listar_por_solicitante(self, solicitante_id: str) -> list[Requerimiento]:
-        rows = (
-            self._session.query(RequerimientoORM)
-            .filter(RequerimientoORM.solicitante_id == solicitante_id)
-            .all()
-        )
-        return self._listar_filas(rows)
+        return [
+            _doc_a_dominio(doc)
+            for doc in self._col.find({"solicitante_id": solicitante_id})
+        ]
 
     def listar_por_tecnico(self, tecnico_id: str) -> list[Requerimiento]:
-        rows = (
-            self._session.query(RequerimientoORM)
-            .filter(RequerimientoORM.tecnico_asignado_id == tecnico_id)
-            .all()
-        )
-        return self._listar_filas(rows)
+        return [
+            _doc_a_dominio(doc)
+            for doc in self._col.find({"tecnico_asignado_id": tecnico_id})
+        ]
 
     def listar_por_estado(self, estado: EstadoRequerimiento) -> list[Requerimiento]:
-        rows = (
-            self._session.query(RequerimientoORM)
-            .filter(RequerimientoORM.estado == estado.value)
-            .all()
-        )
-        return self._listar_filas(rows)
-
-    # ── Helpers privados ───────────────────────────────────────────────────
-
-    def _cargar_eventos(self, req_id: str) -> list[EventoORM]:
-        return (
-            self._session.query(EventoORM)
-            .filter(EventoORM.requerimiento_id == req_id)
-            .order_by(EventoORM.fecha)
-            .all()
-        )
-
-    def _cargar_comentarios(self, req_id: str) -> list[ComentarioORM]:
-        return (
-            self._session.query(ComentarioORM)
-            .filter(ComentarioORM.requerimiento_id == req_id)
-            .order_by(ComentarioORM.fecha)
-            .all()
-        )
-
-    def _listar_filas(self, rows: list[RequerimientoORM]) -> list[Requerimiento]:
-        """Carga eventos y comentarios en batch para evitar N+1."""
-        if not rows:
-            return []
-
-        ids = [r.id for r in rows]
-
-        # Batch load de eventos
-        eventos_map: dict[str, list[EventoORM]] = defaultdict(list)
-        for ev in (
-            self._session.query(EventoORM)
-            .filter(EventoORM.requerimiento_id.in_(ids))
-            .order_by(EventoORM.fecha)
-        ):
-            eventos_map[ev.requerimiento_id].append(ev)
-
-        # Batch load de comentarios
-        comentarios_map: dict[str, list[ComentarioORM]] = defaultdict(list)
-        for co in (
-            self._session.query(ComentarioORM)
-            .filter(ComentarioORM.requerimiento_id.in_(ids))
-            .order_by(ComentarioORM.fecha)
-        ):
-            comentarios_map[co.requerimiento_id].append(co)
-
         return [
-            _requerimiento_orm_a_dominio(
-                row,
-                eventos_map[row.id],
-                comentarios_map[row.id],
-            )
-            for row in rows
+            _doc_a_dominio(doc)
+            for doc in self._col.find({"estado": estado.value})
         ]

@@ -3,10 +3,8 @@
 Centraliza la construcción de servicios y el contexto de usuario actual.
 
 Contiene:
-  - Engine SQLAlchemy (inicialización diferida para no crear DB en tests).
-  - ``get_db()`` generador que provee una sesión por request.
-  - Hasher / verificador de passwords vía bcrypt.
   - ``get_usuario_service()`` y ``get_requerimiento_service()`` para ``Depends()``.
+  - Hasher / verificador de passwords vía bcrypt.
   - ``get_current_user()`` con JWT real.
 
 Regla de sustitución:
@@ -17,15 +15,15 @@ Regla de sustitución:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Generator, Optional
+from typing import Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth import TokenError, decodificar_token
 from app.compartido.dominio import RolUsuario
+from app.infraestructura.database import get_database
 from app.notificaciones.dominio import DespachadorEventos
 from app.requerimientos.dominio import EstadoRequerimiento, Requerimiento
 from app.requerimientos.repositorio import RepositorioRequerimiento
@@ -33,62 +31,6 @@ from app.requerimientos.servicios import RequerimientoService
 from app.usuarios.dominio import Usuario
 from app.usuarios.repositorio import RepositorioUsuario
 from app.usuarios.servicios import UsuarioService
-
-
-# ═══════════════════════════════════════════════════════════
-#  Engine SQLAlchemy (inicialización diferida)
-# ═══════════════════════════════════════════════════════════
-
-# Se inicializan la primera vez que se llama a get_db(),
-# no al importar el módulo: evita efectos en tests unitarios.
-_engine = None
-_SessionFactory: Optional[sessionmaker] = None
-
-
-def _set_engine(engine) -> None:  # type: ignore[no-untyped-def]
-    """Permite que el lifespan de main.py inyecte el engine en el módulo.
-
-    Al llamarse desde el lifespan el engine ya tiene las tablas creadas,
-    evitando que ``get_db()`` las recree en cada arranque.
-    """
-    global _engine, _SessionFactory
-    from app.infraestructura.database import get_session_factory
-    _engine = engine
-    _SessionFactory = get_session_factory(engine)
-
-
-def _ensure_engine() -> None:
-    """Inicializa el engine de forma diferida si el lifespan no lo hizo.
-
-    Ruta de fallback: cubre tests de integración que no pasan por lifespan
-    y cualquier uso del módulo fuera del servidor FastAPI.
-    """
-    global _engine, _SessionFactory
-    if _engine is None:
-        from app.infraestructura.database import (
-            crear_engine,
-            get_session_factory,
-            init_db,
-        )
-        _engine = crear_engine()
-        init_db(_engine)
-        _SessionFactory = get_session_factory(_engine)
-
-
-def get_db() -> Generator[Session, None, None]:
-    """FastAPI dependency: provee una sesión SQLAlchemy por request."""
-    _ensure_engine()
-    if _SessionFactory is None:
-        raise RuntimeError(
-            "_SessionFactory no fue inicializado. "
-            "Verificar que _ensure_engine() se ejecutó correctamente "
-            "o que _set_engine() fue llamado desde el lifespan."
-        )
-    db = _SessionFactory()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 _despachador: DespachadorEventos = DespachadorEventos()
@@ -116,16 +58,18 @@ def _verificador(password: str, hash_: str) -> bool:
 # ═══════════════════════════════════════════════════════════
 
 
-def get_usuario_service(db: Session = Depends(get_db)) -> UsuarioService:
-    """Retorna el servicio de usuarios con repositorio SQL inyectado."""
-    from app.infraestructura.repo_usuarios import RepositorioUsuarioSQL
-    return UsuarioService(RepositorioUsuarioSQL(db), _hasher, _verificador)
+def get_usuario_service() -> UsuarioService:
+    """Retorna el servicio de usuarios con repositorio MongoDB inyectado."""
+    from app.infraestructura.repo_usuarios import RepositorioUsuarioMongo
+    db = get_database()
+    return UsuarioService(RepositorioUsuarioMongo(db), _hasher, _verificador)
 
 
-def get_requerimiento_service(db: Session = Depends(get_db)) -> RequerimientoService:
-    """Retorna el servicio de requerimientos con repositorio SQL inyectado."""
-    from app.infraestructura.repo_requerimientos import RepositorioRequerimientoSQL
-    return RequerimientoService(RepositorioRequerimientoSQL(db), _despachador)
+def get_requerimiento_service() -> RequerimientoService:
+    """Retorna el servicio de requerimientos con repositorio MongoDB inyectado."""
+    from app.infraestructura.repo_requerimientos import RepositorioRequerimientoMongo
+    db = get_database()
+    return RequerimientoService(RepositorioRequerimientoMongo(db), _despachador)
 
 
 # ═══════════════════════════════════════════════════════════

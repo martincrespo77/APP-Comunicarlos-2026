@@ -6,7 +6,7 @@ Es el único módulo que conoce los nombres de las variables de entorno.
 Uso:
     from app.config import get_settings
     settings = get_settings()
-    print(settings.DATABASE_URL)
+    print(settings.MONGODB_URL)
 
 Principio:
     Ningún otro módulo debe leer ``os.environ`` directamente para obtener
@@ -49,13 +49,12 @@ class Settings(BaseSettings):
     EXPIRACION_MINUTOS: int = 60
     """Tiempo de expiración del token en minutos."""
 
-    # ── Persistencia ────────────────────────────────────────────────────────
-    DATABASE_URL: str = "sqlite:///./mesa_de_ayuda.db"
-    """URL de conexión SQLAlchemy.
-    Ejemplos:
-        sqlite:///./mesa_de_ayuda.db       → SQLite local (desarrollo)
-        postgresql://user:pw@host/dbname   → PostgreSQL (producción)
-    """
+    # ── Persistencia — MongoDB ──────────────────────────────────────────────
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    """URL de conexión a la instancia MongoDB."""
+
+    MONGODB_DB_NAME: str = "mesa_de_ayuda"
+    """Nombre de la base de datos MongoDB."""
 
     model_config = SettingsConfigDict(
         env_file=".env",

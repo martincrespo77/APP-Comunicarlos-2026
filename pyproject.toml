@@ -10,11 +10,11 @@ dependencies = [
     "uvicorn[standard]>=0.29",
     "python-jose[cryptography]>=3.3",
     "passlib[bcrypt]>=1.7",
-    "sqlalchemy>=2.0",
+    "pymongo>=4.7",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "httpx>=0.28"]
+dev = ["pytest>=8.0", "httpx>=0.28", "mongomock>=4.1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

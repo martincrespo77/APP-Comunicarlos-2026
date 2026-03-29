@@ -55,11 +55,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Fallback de configuración — DEBE sobreescribirse via .env o variable de entorno
 # en docker-compose. Nunca usar estos valores en un deploy real.
 ENV SECRET_KEY="CAMBIAR-EN-PRODUCCION"
-ENV DATABASE_URL="sqlite:////data/mesa_de_ayuda.db"
-
-# Crear el directorio de datos y asignar al usuario app
-# (solo necesario cuando DATABASE_URL apunta a SQLite en /data)
-RUN mkdir -p /data && chown app:app /data
+# MONGODB_URL y MONGODB_DB_NAME se inyectan desde .env o docker-compose.
+# Ejemplo: MONGODB_URL=mongodb://mongo:27017  MONGODB_DB_NAME=mesa_de_ayuda
 
 # Cambiar al usuario no-root antes de exponer el puerto
 USER app
@@ -71,7 +68,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
 # Comando de producción.
-# Un solo worker: SQLite no soporta múltiples procesos escritores concurrentes.
-# Si se migra a PostgreSQL (ver bloque comentado en docker-compose.yml),
-# incrementar workers según los cores disponibles.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# MongoDB soporta múltiples workers concurrentes; ajustar según cores disponibles.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

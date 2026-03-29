@@ -1,25 +1,22 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  docker-compose.yml — Mesa de Ayuda Comunicarlos
 #
-#  Decisión de base de datos: SQLite (volumen montado)
-#  ─────────────────────────────────────────────────
-#  Justificación para el alcance del TP (PP5):
-#    - El TP es un sistema mono-instancia: un único proceso de API, sin
-#      workers concurrentes que compartan estado de escritura.
-#    - SQLite con un volumen Docker es suficiente para demo, corrección
-#      y entrega académica sin infraestructura adicional.
-#    - Elimina la necesidad de un servicio PostgreSQL separado, healthchecks
-#      de DB, credenciales adicionales y espera de arranque.
-#    - La arquitectura del código ya es DB-agnostic: cambiar DATABASE_URL
-#      a postgres://... es el único cambio necesario si se migra.
-#
-#  Para producción real o si se requiere concurrencia:
-#    - Reemplazar el servicio "api" por uno con PostgreSQL descomentando
-#      el bloque "db" que se incluye comentado al final de este archivo.
-#    - No requiere cambios en el código de la aplicación.
+#  Base de datos: MongoDB 7
+#  La aplicación usa MongoDB como única base de datos.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   api:
     build:
       context: .
@@ -31,12 +28,16 @@ services:
     env_file:
       - .env
 
+    environment:
+      MONGODB_URL: mongodb://mongo:27017
+      MONGODB_DB_NAME: mesa_de_ayuda
+
     ports:
       - "8000:8000"          # host:container
 
-    volumes:
-      # Volumen nombrado para persistir la base de datos SQLite entre reinicios
-      - sqlite_data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
 
     restart: unless-stopped
 
@@ -46,42 +47,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 15s      # da tiempo al lifespan de crear las tablas
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Volúmenes
-# ─────────────────────────────────────────────────────────────────────────────
+      start_period: 15s
 
 volumes:
-  sqlite_data:
-    driver: local
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Bloque PostgreSQL (descomenta cuando necesites concurrencia real)
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# services:
-#   db:
-#     image: postgres:16-alpine
-#     environment:
-#       POSTGRES_DB: mesa_de_ayuda
-#       POSTGRES_USER: mesa
-#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#     volumes:
-#       - pg_data:/var/lib/postgresql/data
-#     healthcheck:
-#       test: ["CMD-SHELL", "pg_isready -U mesa -d mesa_de_ayuda"]
-#       interval: 10s
-#       timeout: 5s
-#       retries: 5
-#
-#   api:
-#     depends_on:
-#       db:
-#         condition: service_healthy
-#     environment:
-#       DATABASE_URL: postgresql://mesa:${POSTGRES_PASSWORD}@db:5432/mesa_de_ayuda
-#
-# volumes:
-#   pg_data:
+  mongo_data:

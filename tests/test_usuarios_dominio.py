@@ -100,7 +100,7 @@ class TestUsuarioCreacion(unittest.TestCase):
         # Arrange / Act / Assert
         emails_por_rol = {
             RolUsuario.SOLICITANTE: "sol@gmail.com",
-            RolUsuario.SUPERVISOR: "sup@gmail.com",
+            RolUsuario.SUPERVISOR: "sup@comunicarlos.com.ar",
             RolUsuario.OPERADOR: "op@comunicarlos.com.ar",
             RolUsuario.TECNICO: "tec@comunicarlos.com.ar",
         }
@@ -428,11 +428,11 @@ class TestEmailCorporativo(unittest.TestCase):
                 except ValueError as e:
                     self.fail(f"Solicitante con {email!r} lanzó ValueError: {e}")
 
-    def test_supervisor_puede_usar_cualquier_email(self):
-        # Arrange / Act / Assert — SUPERVISOR no tiene restricción de dominio
+    def test_supervisor_requiere_email_corporativo(self):
+        # Arrange / Act / Assert — SUPERVISOR requiere correo @comunicarlos.com.ar
         for email in ("jefe@gmail.com", "dir@empresa.org"):
             with self.subTest(email=email):
-                try:
+                with self.assertRaises(ValueError):
                     Usuario(
                         id="usr-c7",
                         nombre="Supervisor",
@@ -440,8 +440,17 @@ class TestEmailCorporativo(unittest.TestCase):
                         rol=RolUsuario.SUPERVISOR,
                         password_hash=_HASH,
                     )
-                except ValueError as e:
-                    self.fail(f"Supervisor con {email!r} lanzó ValueError: {e}")
+
+    def test_supervisor_con_email_corporativo_ok(self):
+        # Arrange / Act / Assert — SUPERVISOR con correo corporativo es válido
+        u = Usuario(
+            id="usr-c8",
+            nombre="Supervisor",
+            email="jefe@comunicarlos.com.ar",
+            rol=RolUsuario.SUPERVISOR,
+            password_hash=_HASH,
+        )
+        self.assertEqual(u.rol, RolUsuario.SUPERVISOR)
 
 
 if __name__ == "__main__":

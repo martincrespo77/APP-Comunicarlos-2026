@@ -104,9 +104,9 @@ class UsuarioService:
             raise UsuarioNoEncontrado(f"Usuario '{usuario_id}' no encontrado.")
         return usuario
 
-    def listar(self) -> list[Usuario]:
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Usuario]:
         """Retorna todos los usuarios del sistema."""
-        return self._repo.listar()
+        return self._repo.listar(skip=skip, limit=limit)
 
     def desactivar(self, usuario_id: str) -> None:
         """Desactiva el usuario indicado.

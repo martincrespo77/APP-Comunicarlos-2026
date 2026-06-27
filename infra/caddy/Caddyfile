@@ -1,0 +1,18 @@
+{
+	auto_https off
+}
+
+# Redirigir HTTP → HTTPS
+http://localhost, http://127.0.0.1 {
+	redir https://{host}{uri} permanent
+}
+
+# HTTPS con certificados locales → reverse proxy a la API
+https://localhost, https://127.0.0.1 {
+	tls /certs/localhost.pem /certs/localhost-key.pem
+
+	# Desactivar cache en recursos de la app (desarrollo)
+	header Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+
+	reverse_proxy api:8000
+}

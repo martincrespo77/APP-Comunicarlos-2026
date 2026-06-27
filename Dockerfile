@@ -43,6 +43,10 @@ COPY --from=builder /build/.venv /app/.venv
 COPY app/ ./app/
 COPY main.py ./
 
+# Copiar archivos estáticos (portal, UML) y docs si fueron generados
+COPY static/ ./static/
+COPY docs/ ./docs/
+
 # El venv se activa poniendo su bin/ primero en PATH
 # Los comentarios inline dentro de un bloque ENV multilínea no son válidos
 # en Docker: cada variable se declara por separado para mayor claridad.
@@ -68,5 +72,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
 # Comando de producción.
+# Se usa "python -m uvicorn" en vez de "uvicorn" porque el venv se construye
+# en /build/.venv (builder) y se copia a /app/.venv (runtime): los shebangs
+# de los scripts del venv quedan apuntando a /build/ y no funcionan.
 # MongoDB soporta múltiples workers concurrentes; ajustar según cores disponibles.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

@@ -37,14 +37,14 @@ class RepositorioRequerimiento(ABC):
         """Retorna el requerimiento con ese ID, o ``None`` si no existe."""
 
     @abstractmethod
-    def listar(self) -> list[Requerimiento]:
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna todos los requerimientos del sistema.
 
         Uso típico: vistas de operadores y supervisores.
         """
 
     @abstractmethod
-    def listar_por_solicitante(self, solicitante_id: str) -> list[Requerimiento]:
+    def listar_por_solicitante(self, solicitante_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna los requerimientos creados por ese solicitante.
 
         El TP exige que los solicitantes solo puedan ver sus propios
@@ -52,14 +52,14 @@ class RepositorioRequerimiento(ABC):
         """
 
     @abstractmethod
-    def listar_por_tecnico(self, tecnico_id: str) -> list[Requerimiento]:
+    def listar_por_tecnico(self, tecnico_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna los requerimientos asignados a ese técnico.
 
         Utilizado por el técnico para ver su carga de trabajo actual.
         """
 
     @abstractmethod
-    def listar_por_estado(self, estado: EstadoRequerimiento) -> list[Requerimiento]:
+    def listar_por_estado(self, estado: EstadoRequerimiento, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna los requerimientos que se encuentran en ese estado.
 
         Utilizado por operadores y supervisores para monitoreo y filtrado.

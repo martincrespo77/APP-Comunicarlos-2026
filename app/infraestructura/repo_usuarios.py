@@ -81,5 +81,5 @@ class RepositorioUsuarioMongo(RepositorioUsuario):
         doc = self._col.find_one({"email": email})
         return _doc_a_dominio(doc) if doc else None
 
-    def listar(self) -> list[Usuario]:
-        return [_doc_a_dominio(doc) for doc in self._col.find()]
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Usuario]:
+        return [_doc_a_dominio(doc) for doc in self._col.find().skip(skip).limit(limit)]

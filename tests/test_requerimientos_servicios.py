@@ -39,17 +39,17 @@ class FakeRepositorioRequerimiento(RepositorioRequerimiento):
     def obtener_por_id(self, requerimiento_id: str) -> Requerimiento | None:
         return self._por_id.get(requerimiento_id)
 
-    def listar(self) -> list[Requerimiento]:
-        return list(self._por_id.values())
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return list(self._por_id.values())[skip : skip + limit]
 
-    def listar_por_solicitante(self, solicitante_id: str) -> list[Requerimiento]:
-        return [r for r in self._por_id.values() if r.solicitante_id == solicitante_id]
+    def listar_por_solicitante(self, solicitante_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return [r for r in self._por_id.values() if r.solicitante_id == solicitante_id][skip : skip + limit]
 
-    def listar_por_tecnico(self, tecnico_id: str) -> list[Requerimiento]:
-        return [r for r in self._por_id.values() if r.tecnico_asignado_id == tecnico_id]
+    def listar_por_tecnico(self, tecnico_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return [r for r in self._por_id.values() if r.tecnico_asignado_id == tecnico_id][skip : skip + limit]
 
-    def listar_por_estado(self, estado: EstadoRequerimiento) -> list[Requerimiento]:
-        return [r for r in self._por_id.values() if r.estado == estado]
+    def listar_por_estado(self, estado: EstadoRequerimiento, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return [r for r in self._por_id.values() if r.estado == estado][skip : skip + limit]
 
 
 # ── Observador espía ──────────────────────────────────────────────────────────

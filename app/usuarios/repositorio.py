@@ -43,5 +43,5 @@ class RepositorioUsuario(ABC):
         """
 
     @abstractmethod
-    def listar(self) -> list[Usuario]:
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Usuario]:
         """Retorna todos los usuarios registrados en el sistema."""

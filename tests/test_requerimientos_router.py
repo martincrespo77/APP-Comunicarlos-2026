@@ -57,17 +57,17 @@ class _RepoReqFresh(RepositorioRequerimiento):
     def obtener_por_id(self, rid: str) -> Optional[Requerimiento]:
         return self._store.get(rid)
 
-    def listar(self) -> list[Requerimiento]:
-        return list(self._store.values())
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return list(self._store.values())[skip : skip + limit]
 
-    def listar_por_solicitante(self, sol_id: str) -> list[Requerimiento]:
-        return [r for r in self._store.values() if r.solicitante_id == sol_id]
+    def listar_por_solicitante(self, sol_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return [r for r in self._store.values() if r.solicitante_id == sol_id][skip : skip + limit]
 
-    def listar_por_tecnico(self, tec_id: str) -> list[Requerimiento]:
-        return [r for r in self._store.values() if r.tecnico_asignado_id == tec_id]
+    def listar_por_tecnico(self, tec_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return [r for r in self._store.values() if r.tecnico_asignado_id == tec_id][skip : skip + limit]
 
-    def listar_por_estado(self, estado: EstadoRequerimiento) -> list[Requerimiento]:
-        return [r for r in self._store.values() if r.estado == estado]
+    def listar_por_estado(self, estado: EstadoRequerimiento, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return [r for r in self._store.values() if r.estado == estado][skip : skip + limit]
 
 
 # ── Payloads de test ─────────────────────────────────────────────────
@@ -555,8 +555,8 @@ class TestListarRequerimientosPorRol(_BaseReqTest):
         self.assertEqual(resp.json(), [])
 
     def test_supervisor_ve_todos_los_reqs(self):
-        self._crear_incidente(titulo="Uno")
-        self._crear_incidente(titulo="Dos")
+        self._crear_incidente(titulo="Incidente uno")
+        self._crear_incidente(titulo="Incidente dos")
         self._set_current(self._SUPERVISOR)
         resp = self.client.get("/requerimientos/")
         self.assertEqual(resp.status_code, 200)

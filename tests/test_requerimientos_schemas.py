@@ -78,8 +78,8 @@ class TestIncidenteCrearIn(unittest.TestCase):
 
     def test_acepta_string_enum_urgencia(self):
         dto = IncidenteCrearIn(
-            titulo="T",
-            descripcion="D",
+            titulo="Título de prueba",
+            descripcion="Descripción de prueba válida",
             solicitante_id="u-1",
             urgencia="menor",
             categoria="bloqueo_sim",
@@ -120,8 +120,8 @@ class TestSolicitudCrearIn(unittest.TestCase):
     def test_no_tiene_campo_urgencia(self):
         """Las solicitudes no tienen urgencia."""
         dto = SolicitudCrearIn(
-            titulo="T",
-            descripcion="D",
+            titulo="Baja de servicio",
+            descripcion="Solicito dar de baja el servicio",
             solicitante_id="u-1",
             categoria=CategoriaSolicitud.BAJA_SERVICIO,
         )

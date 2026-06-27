@@ -30,7 +30,7 @@ def _usuario_base(
         RolUsuario.TECNICO: "ana@comunicarlos.com.ar",
         RolUsuario.OPERADOR: "ana@comunicarlos.com.ar",
         RolUsuario.SOLICITANTE: "ana@gmail.com",
-        RolUsuario.SUPERVISOR: "ana@gmail.com",
+        RolUsuario.SUPERVISOR: "ana@comunicarlos.com.ar",
     }
     return Usuario(
         id="u-001",
@@ -68,7 +68,7 @@ class TestUsuarioCrearIn(unittest.TestCase):
             nombre="Luis",
             email="luis@empresa.com",
             rol="solicitante",
-            password="pw",
+            password="passwd",
         )
         self.assertEqual(dto.rol, RolUsuario.SOLICITANTE)
 
@@ -94,7 +94,7 @@ class TestUsuarioCrearIn(unittest.TestCase):
             nombre="Test",
             email="t@e.com",
             rol=RolUsuario.SOLICITANTE,
-            password="pw",
+            password="passwd",
         )
         self.assertFalse(hasattr(dto, "password_hash"))
 

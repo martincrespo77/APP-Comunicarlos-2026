@@ -19,38 +19,49 @@ from typing import Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from passlib.context import CryptContext
 
 from app.auth import TokenError, decodificar_token
 from app.compartido.dominio import RolUsuario
 from app.infraestructura.database import get_database
-from app.notificaciones.dominio import DespachadorEventos
-from app.requerimientos.dominio import EstadoRequerimiento, Requerimiento
+from app.notificaciones.dominio import DespachadorEventos, ObservadorRequerimiento
+from app.requerimientos.dominio import EstadoRequerimiento, Requerimiento, Evento
 from app.requerimientos.repositorio import RepositorioRequerimiento
 from app.requerimientos.servicios import RequerimientoService
 from app.usuarios.dominio import Usuario
 from app.usuarios.repositorio import RepositorioUsuario
 from app.usuarios.servicios import UsuarioService
+import logging
+
+
+class NotificadorSupervisor(ObservadorRequerimiento):
+    """Observador concreto de auditoría que imprime a la salida de log del sistema."""
+
+    def notificar(self, evento: Evento, requerimiento_id: str) -> None:
+        logging.info(
+            f"[NOTIFICACIÓN SUPERVISOR] Evento '{evento.tipo.value}' en Requerimiento '{requerimiento_id}': "
+            f"actor={evento.actor_id}, detalle='{evento.detalle}'"
+        )
 
 
 _despachador: DespachadorEventos = DespachadorEventos()
+_despachador.registrar(NotificadorSupervisor())
 
 
 # ═══════════════════════════════════════════════════════════
-#  Hashing de contraseñas (bcrypt via passlib)
+#  Hashing de contraseñas (bcrypt directo)
 # ═══════════════════════════════════════════════════════════
 
-_crypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt as _bcrypt
 
 
 def _hasher(password: str) -> str:
     """Genera un hash bcrypt de la contraseña."""
-    return _crypt.hash(password)
+    return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
 
 
 def _verificador(password: str, hash_: str) -> bool:
     """Verifica una contraseña contra su hash bcrypt."""
-    return _crypt.verify(password, hash_)
+    return _bcrypt.checkpw(password.encode("utf-8"), hash_.encode("utf-8"))
 
 
 # ═══════════════════════════════════════════════════════════

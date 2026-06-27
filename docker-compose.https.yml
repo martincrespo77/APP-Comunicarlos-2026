@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  docker-compose.https.yml — Override para habilitar HTTPS local con Caddy
+#
+#  Uso:  docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+#
+#  Caddy actúa como reverse proxy: recibe HTTPS en 443 y reenvía a api:8000.
+#  Requiere certificados locales en infra/certs/ (ver INICIAR.bat opción HTTPS).
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: pp5-caddy
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/certs:/certs:ro
+    restart: unless-stopped

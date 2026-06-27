@@ -11,7 +11,9 @@ from datetime import datetime
 from app.compartido.dominio import RolUsuario
 
 _DOMINIO_CORPORATIVO = "@comunicarlos.com.ar"
-_ROLES_CORPORATIVOS = frozenset({RolUsuario.OPERADOR, RolUsuario.TECNICO})
+_ROLES_CORPORATIVOS = frozenset(
+    {RolUsuario.OPERADOR, RolUsuario.TECNICO, RolUsuario.SUPERVISOR}
+)
 
 
 class Usuario:

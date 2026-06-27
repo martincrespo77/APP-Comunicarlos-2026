@@ -11,11 +11,13 @@ Arranque para producción (Docker):
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.requerimientos.excepciones import RequerimientoError
 from app.requerimientos.router import router as requerimientos_router
@@ -101,3 +103,37 @@ async def requerimiento_error_handler(
 def health() -> dict:
     """Endpoint de salud para load balancers y liveness probes."""
     return {"status": "ok"}
+
+
+# ── Archivos estáticos: UML, documentación, portal ──────────────────
+
+_root = os.path.dirname(__file__)
+_static_dir = os.path.join(_root, "static")
+_uml_dir = os.path.join(_static_dir, "uml")
+_docs_html_dir = os.path.join(_root, "docs", "build", "html")
+
+# UML interactivo (Mermaid.js)
+if os.path.isdir(_uml_dir):
+    app.mount("/uml", StaticFiles(directory=_uml_dir, html=True), name="uml")
+
+# Documentación Sphinx (si fue generada)
+if os.path.isdir(_docs_html_dir):
+    app.mount(
+        "/documentacion",
+        StaticFiles(directory=_docs_html_dir, html=True),
+        name="documentacion",
+    )
+
+# Frontend (SPA) — debe ir después de /uml y /documentacion
+_app_dir = os.path.join(_static_dir, "app")
+if os.path.isdir(_app_dir):
+    app.mount("/app", StaticFiles(directory=_app_dir, html=True), name="frontend")
+
+
+@app.get("/", include_in_schema=False)
+def portal():
+    """Portal de bienvenida con links a todos los recursos."""
+    index = os.path.join(_static_dir, "index.html")
+    if os.path.isfile(index):
+        return FileResponse(index)
+    return {"message": "Mesa de Ayuda — Comunicarlos", "docs": "/docs"}

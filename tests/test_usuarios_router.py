@@ -59,8 +59,8 @@ class _RepoUsuarioFresh(RepositorioUsuario):
     def obtener_por_email(self, email: str) -> Optional[Usuario]:
         return next((u for u in self._store.values() if u.email == email), None)
 
-    def listar(self) -> list[Usuario]:
-        return list(self._store.values())
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Usuario]:
+        return list(self._store.values())[skip : skip + limit]
 
 
 _SUPERVISOR_ACTUAL = UsuarioActual(id="sys", rol=RolUsuario.SUPERVISOR)

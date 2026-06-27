@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 from app.compartido.dominio import RolUsuario
 from app.usuarios.dominio import Usuario
@@ -32,17 +32,33 @@ class UsuarioCrearIn(BaseModel):
     antes de construir la entidad.
     """
 
-    nombre: str
-    email: str
-    rol: RolUsuario
-    password: str
+    nombre: str = Field(
+        min_length=2,
+        max_length=100,
+        examples=["Juan Pérez"],
+        description="Nombre completo del usuario.",
+    )
+    email: EmailStr = Field(
+        examples=["juan@comunicarlos.com.ar"],
+        description="Email del usuario. Operadores y técnicos requieren dominio corporativo.",
+    )
+    rol: RolUsuario = Field(
+        examples=["solicitante"],
+        description="Rol asignado al usuario.",
+    )
+    password: str = Field(
+        min_length=6,
+        max_length=72,
+        examples=["MiClave123"],
+        description="Contraseña en texto plano (se hashea en el server).",
+    )
 
 
 class UsuarioAutenticarIn(BaseModel):
     """Credenciales para autenticar a un usuario."""
 
-    email: str
-    password: str
+    email: EmailStr = Field(examples=["juan@comunicarlos.com.ar"])
+    password: str = Field(min_length=1)
 
 
 # ═══════════════════════════════════════════════════════════

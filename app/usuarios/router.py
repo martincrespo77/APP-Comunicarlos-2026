@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import crear_token
 from app.compartido.dominio import RolUsuario
@@ -118,13 +118,18 @@ def autenticar(body: UsuarioAutenticarIn, service: _Service) -> TokenOut:
     response_model=list[UsuarioOut],
     summary="Listar todos los usuarios",
 )
-def listar(_current: _CurrentSuperOper, service: _Service) -> list[UsuarioOut]:
+def listar(
+    _current: _CurrentSuperOper,
+    service: _Service,
+    skip: int = Query(default=0, ge=0, description="Número de usuarios a omitir"),
+    limit: int = Query(default=10, ge=1, le=100, description="Límite de usuarios a retornar"),
+) -> list[UsuarioOut]:
     """Retorna la lista completa de usuarios registrados.
 
     Requiere rol SUPERVISOR u OPERADOR: sólo el personal de mesa
     de ayuda necesita ver el padrón completo de usuarios.
     """
-    return [UsuarioOut.desde_entidad(u) for u in service.listar()]
+    return [UsuarioOut.desde_entidad(u) for u in service.listar(skip=skip, limit=limit)]
 
 
 @router.get(

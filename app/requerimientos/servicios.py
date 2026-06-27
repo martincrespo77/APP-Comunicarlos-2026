@@ -189,18 +189,18 @@ class RequerimientoService:
         """
         return self._obtener_o_fallar(requerimiento_id)
 
-    def listar(self) -> list[Requerimiento]:
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna todos los requerimientos del sistema."""
-        return self._repo.listar()
+        return self._repo.listar(skip=skip, limit=limit)
 
-    def listar_por_solicitante(self, solicitante_id: str) -> list[Requerimiento]:
+    def listar_por_solicitante(self, solicitante_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna los requerimientos del solicitante indicado."""
-        return self._repo.listar_por_solicitante(solicitante_id)
+        return self._repo.listar_por_solicitante(solicitante_id, skip=skip, limit=limit)
 
-    def listar_por_tecnico(self, tecnico_id: str) -> list[Requerimiento]:
+    def listar_por_tecnico(self, tecnico_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna los requerimientos asignados al técnico indicado."""
-        return self._repo.listar_por_tecnico(tecnico_id)
+        return self._repo.listar_por_tecnico(tecnico_id, skip=skip, limit=limit)
 
-    def listar_por_estado(self, estado: EstadoRequerimiento) -> list[Requerimiento]:
+    def listar_por_estado(self, estado: EstadoRequerimiento, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         """Retorna los requerimientos en el estado indicado."""
-        return self._repo.listar_por_estado(estado)
+        return self._repo.listar_por_estado(estado, skip=skip, limit=limit)

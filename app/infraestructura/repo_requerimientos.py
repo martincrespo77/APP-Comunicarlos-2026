@@ -188,23 +188,23 @@ class RepositorioRequerimientoMongo(RepositorioRequerimiento):
 
     # ── Lecturas en lote ───────────────────────────────────────────────────
 
-    def listar(self) -> list[Requerimiento]:
-        return [_doc_a_dominio(doc) for doc in self._col.find()]
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
+        return [_doc_a_dominio(doc) for doc in self._col.find().skip(skip).limit(limit)]
 
-    def listar_por_solicitante(self, solicitante_id: str) -> list[Requerimiento]:
+    def listar_por_solicitante(self, solicitante_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         return [
             _doc_a_dominio(doc)
-            for doc in self._col.find({"solicitante_id": solicitante_id})
+            for doc in self._col.find({"solicitante_id": solicitante_id}).skip(skip).limit(limit)
         ]
 
-    def listar_por_tecnico(self, tecnico_id: str) -> list[Requerimiento]:
+    def listar_por_tecnico(self, tecnico_id: str, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         return [
             _doc_a_dominio(doc)
-            for doc in self._col.find({"tecnico_asignado_id": tecnico_id})
+            for doc in self._col.find({"tecnico_asignado_id": tecnico_id}).skip(skip).limit(limit)
         ]
 
-    def listar_por_estado(self, estado: EstadoRequerimiento) -> list[Requerimiento]:
+    def listar_por_estado(self, estado: EstadoRequerimiento, skip: int = 0, limit: int = 100) -> list[Requerimiento]:
         return [
             _doc_a_dominio(doc)
-            for doc in self._col.find({"estado": estado.value})
+            for doc in self._col.find({"estado": estado.value}).skip(skip).limit(limit)
         ]

@@ -161,6 +161,8 @@ def listar(
     solicitante_id: str | None = Query(default=None, description="Filtrar por solicitante"),
     tecnico_id: str | None = Query(default=None, description="Filtrar por técnico asignado"),
     estado: EstadoRequerimiento | None = Query(default=None, description="Filtrar por estado"),
+    skip: int = Query(default=0, ge=0, description="Número de registros a omitir"),
+    limit: int = Query(default=10, ge=1, le=100, description="Límite de registros a retornar"),
 ) -> list[RequerimientoOut]:
     """Retorna requerimientos con visibilidad según el rol del usuario autenticado.
 
@@ -176,22 +178,28 @@ def listar(
     rol = current.rol
 
     if rol == RolUsuario.SOLICITANTE:
-        reqs = service.listar_por_solicitante(current.id)
         if estado:
+            reqs = service.listar_por_solicitante(current.id)
             reqs = [r for r in reqs if r.estado == estado]
+            reqs = reqs[skip : skip + limit]
+        else:
+            reqs = service.listar_por_solicitante(current.id, skip=skip, limit=limit)
     elif rol == RolUsuario.TECNICO:
-        reqs = service.listar_por_tecnico(current.id)
         if estado:
+            reqs = service.listar_por_tecnico(current.id)
             reqs = [r for r in reqs if r.estado == estado]
+            reqs = reqs[skip : skip + limit]
+        else:
+            reqs = service.listar_por_tecnico(current.id, skip=skip, limit=limit)
     else:  # OPERADOR / SUPERVISOR: visibilidad total
         if solicitante_id:
-            reqs = service.listar_por_solicitante(solicitante_id)
+            reqs = service.listar_por_solicitante(solicitante_id, skip=skip, limit=limit)
         elif tecnico_id:
-            reqs = service.listar_por_tecnico(tecnico_id)
+            reqs = service.listar_por_tecnico(tecnico_id, skip=skip, limit=limit)
         elif estado:
-            reqs = service.listar_por_estado(estado)
+            reqs = service.listar_por_estado(estado, skip=skip, limit=limit)
         else:
-            reqs = service.listar()
+            reqs = service.listar(skip=skip, limit=limit)
 
     return [RequerimientoOut.desde_entidad(r) for r in reqs]
 

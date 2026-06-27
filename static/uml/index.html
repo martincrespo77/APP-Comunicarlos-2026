@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UML Interactivo - Mesa de Ayuda Comunicarlos</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e17;color:#e0e6ed;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh;width:100vw}
+#topbar{position:fixed;top:0;left:0;right:0;height:48px;background:#111827;border-bottom:1px solid #1e293b;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:1000}
+#topbar h1{font-size:15px;color:#38bdf8;white-space:nowrap}
+#topbar input{flex:0 1 280px;padding:6px 12px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e0e6ed;font-size:13px}
+.filter-btn{padding:4px 10px;border-radius:4px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.filter-btn:hover{border-color:#64748b}
+.filter-btn.active{background:#1e3a5f;border-color:#38bdf8;color:#38bdf8}
+#resetBtn{padding:4px 10px;border-radius:4px;border:1px solid #f87171;background:transparent;color:#f87171;font-size:11px;cursor:pointer}
+#resetBtn:hover{background:#f8717122}
+#canvas{position:absolute;top:48px;left:0;right:0;bottom:0;overflow:auto;cursor:grab}
+#canvas.grabbing{cursor:grabbing}
+#world{position:relative;width:6000px;height:4500px}
+#connections{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.uml-node{position:absolute;background:#111827;border:2px solid #1e3a5f;border-radius:8px;min-width:240px;max-width:340px;z-index:10;cursor:move;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:box-shadow .2s,opacity .15s}
+.uml-node:hover{box-shadow:0 4px 30px rgba(56,189,248,.25);z-index:20}
+.uml-node.highlight{border-color:#f59e0b!important;box-shadow:0 0 20px rgba(245,158,11,.4)}
+.uml-node.dimmed{opacity:.15}
+.node-header{padding:8px 12px;border-bottom:1px solid #1e3a5f;display:flex;flex-direction:column;gap:2px}
+.node-stereotype{font-size:10px;color:#38bdf8;text-align:center;font-style:italic}
+.node-title{font-size:14px;font-weight:700;text-align:center}
+.node-section{padding:6px 12px;border-bottom:1px solid rgba(30,58,95,.3)}
+.node-section:last-of-type{border-bottom:none}
+.section-label{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.attr-line,.method-line{font-size:11px;font-family:'Cascadia Code','Fira Code',monospace;line-height:1.6;color:#cbd5e1}
+.attr-line::before{content:'+';color:#38bdf8;margin-right:4px}
+.method-line::before{content:'+';color:#a78bfa;margin-right:4px}
+.method-line.abstract::before{content:'*';color:#f59e0b}
+.method-line.private::before{content:'-';color:#f87171}
+.method-line.property::before{content:'@';color:#34d399}
+.layer-entity .node-header{background:#1a1a2e;border-color:#4f46e5}
+.layer-entity{border-color:#4f46e5}
+.layer-vo .node-header{background:#1a2e1a;border-color:#22c55e}
+.layer-vo{border-color:#22c55e}
+.layer-enum .node-header{background:#2e2e1a;border-color:#eab308}
+.layer-enum{border-color:#eab308}
+.layer-factory .node-header{background:#2e261a;border-color:#d97706}
+.layer-factory{border-color:#d97706}
+.layer-exception .node-header{background:#2e1a1a;border-color:#f87171}
+.layer-exception{border-color:#f87171}
+.layer-service .node-header{background:#1a2e2e;border-color:#06b6d4}
+.layer-service{border-color:#06b6d4}
+.layer-repo .node-header{background:#1e293b;border-color:#f97316}
+.layer-repo{border-color:#f97316}
+.layer-schema .node-header{background:#1a1e2e;border-color:#818cf8}
+.layer-schema{border-color:#818cf8}
+.layer-router .node-header{background:#1a2e28;border-color:#14b8a6}
+.layer-router{border-color:#14b8a6}
+.layer-observer .node-header{background:#2e1a2e;border-color:#a855f7}
+.layer-observer{border-color:#a855f7}
+.layer-auth .node-header{background:#2e261a;border-color:#ca8a04}
+.layer-auth{border-color:#ca8a04}
+.layer-shared .node-header{background:#1a2428;border-color:#2dd4bf}
+.layer-shared{border-color:#2dd4bf}
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;justify-content:center;align-items:center}
+#modal-overlay.show{display:flex}
+#modal{background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column}
+#modal-header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid #334155}
+#modal-header h2{font-size:16px;color:#38bdf8}
+.close-btn{padding:5px 14px;border-radius:6px;border:1px solid #f87171;background:transparent;color:#f87171;font-size:12px;cursor:pointer}
+.close-btn:hover{background:#f8717122}
+#modal-body{overflow-y:auto;flex:1;padding:16px 20px}
+.detail-section{margin-bottom:18px;padding:14px 18px;border-radius:10px;border:1px solid #334155}
+.detail-section.file{background:#1a1a2e;border-color:#4f46e5}
+.detail-section.desc{background:#1a2e2e;border-color:#06b6d4}
+.detail-section.pattern{background:#1a2e1a;border-color:#22c55e}
+.detail-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.detail-label.file-label{color:#818cf8}
+.detail-label.desc-label{color:#22d3ee}
+.detail-label.pattern-label{color:#4ade80}
+.detail-text{font-size:13px;line-height:1.8;color:#cbd5e1}
+.detail-text code{background:#0f172a;padding:2px 6px;border-radius:4px;font-family:'Cascadia Code','Fira Code',monospace;font-size:12px}
+#legend{position:fixed;bottom:12px;left:12px;background:#111827;border:1px solid #1e293b;border-radius:8px;padding:10px 14px;z-index:900;font-size:11px;user-select:none;max-height:calc(100vh - 80px);overflow-y:auto}
+#legend h3{font-size:12px;color:#38bdf8;margin-bottom:6px}
+.legend-item{display:flex;align-items:center;gap:6px;margin-bottom:3px;cursor:pointer;padding:2px 4px;border-radius:4px;transition:background .15s}
+.legend-item:hover{background:rgba(255,255,255,.06)}
+.legend-item.off{opacity:.35}
+.legend-color{width:14px;height:14px;border-radius:3px;border:2px solid}
+.legend-check{width:10px;height:10px;border-radius:2px;border:1.5px solid #38bdf8;background:#38bdf8;transition:background .15s;flex-shrink:0}
+.legend-item.off .legend-check{background:transparent}
+.conn-inherit{stroke:#38bdf8;stroke-width:2}
+.conn-compose{stroke:#22c55e;stroke-width:1.5;stroke-dasharray:6,3}
+.conn-use{stroke:#94a3b8;stroke-width:1;stroke-dasharray:4,4}
+.conn-implement{stroke:#a855f7;stroke-width:2;stroke-dasharray:8,4}
+.node-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#0f172a;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:30;color:#94a3b8}
+.uml-node:hover .node-tooltip{opacity:1}
+#minimap{position:fixed;bottom:12px;right:12px;width:200px;height:150px;background:#111827;border:1px solid #1e293b;border-radius:8px;z-index:900;overflow:hidden}
+#minimap-viewport{position:absolute;border:1px solid #38bdf8;background:rgba(56,189,248,.1);cursor:move;pointer-events:auto}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <h1>UML Interactivo &mdash; Mesa de Ayuda Comunicarlos</h1>
+  <input type="text" id="searchInput" placeholder="Buscar clase...">
+  <button class="filter-btn active" data-layer="all">Todas</button>
+  <button class="filter-btn" data-layer="entity">Entidades</button>
+  <button class="filter-btn" data-layer="enum">Enums</button>
+  <button class="filter-btn" data-layer="vo">Value Objects</button>
+  <button class="filter-btn" data-layer="observer">Observer</button>
+  <button class="filter-btn" data-layer="factory">Factory</button>
+  <button class="filter-btn" data-layer="exception">Excepciones</button>
+  <button class="filter-btn" data-layer="service">Services</button>
+  <button class="filter-btn" data-layer="repo">Repos</button>
+  <button class="filter-btn" data-layer="schema">Schemas</button>
+  <button class="filter-btn" data-layer="router">Routers</button>
+  <button class="filter-btn" data-layer="auth">Auth</button>
+  <button class="filter-btn" data-layer="shared">Shared</button>
+  <button id="resetBtn">Reset</button>
+</div>
+<div id="canvas">
+  <div id="world">
+    <svg id="connections">
+      <defs>
+        <marker id="arrow-inherit" markerWidth="12" markerHeight="8" refX="12" refY="4" orient="auto"><polygon points="0,0 12,4 0,8" fill="none" stroke="#38bdf8" stroke-width="1.5"/></marker>
+        <marker id="arrow-use" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0,0 8,3 0,6" fill="#94a3b8"/></marker>
+        <marker id="diamond-compose" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto"><polygon points="5,0 10,4 5,8 0,4" fill="#22c55e"/></marker>
+        <marker id="arrow-implement" markerWidth="12" markerHeight="8" refX="12" refY="4" orient="auto"><polygon points="0,0 12,4 0,8" fill="none" stroke="#a855f7" stroke-width="1.5"/></marker>
+      </defs>
+    </svg>
+  </div>
+</div>
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <div id="modal-header"><h2 id="modal-title"></h2><button class="close-btn" onclick="closeModal()">Cerrar</button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+<div id="legend">
+  <h3>Leyenda <span style="font-size:10px;color:#64748b;font-weight:400">(click para filtrar)</span></h3>
+  <div class="legend-item" data-toggle="entity"><span class="legend-check"></span><div class="legend-color" style="border-color:#4f46e5;background:#1a1a2e"></div> Entidades</div>
+  <div class="legend-item" data-toggle="enum"><span class="legend-check"></span><div class="legend-color" style="border-color:#eab308;background:#2e2e1a"></div> Enums</div>
+  <div class="legend-item" data-toggle="vo"><span class="legend-check"></span><div class="legend-color" style="border-color:#22c55e;background:#1a2e1a"></div> Value Objects</div>
+  <div class="legend-item" data-toggle="observer"><span class="legend-check"></span><div class="legend-color" style="border-color:#a855f7;background:#2e1a2e"></div> Observer Pattern</div>
+  <div class="legend-item" data-toggle="factory"><span class="legend-check"></span><div class="legend-color" style="border-color:#d97706;background:#2e261a"></div> Factory</div>
+  <div class="legend-item" data-toggle="exception"><span class="legend-check"></span><div class="legend-color" style="border-color:#f87171;background:#2e1a1a"></div> Excepciones</div>
+  <div class="legend-item" data-toggle="service"><span class="legend-check"></span><div class="legend-color" style="border-color:#06b6d4;background:#1a2e2e"></div> Services</div>
+  <div class="legend-item" data-toggle="repo"><span class="legend-check"></span><div class="legend-color" style="border-color:#f97316;background:#1e293b"></div> Repos</div>
+  <div class="legend-item" data-toggle="schema"><span class="legend-check"></span><div class="legend-color" style="border-color:#818cf8;background:#1a1e2e"></div> Schemas</div>
+  <div class="legend-item" data-toggle="router"><span class="legend-check"></span><div class="legend-color" style="border-color:#14b8a6;background:#1a2e28"></div> Routers</div>
+  <div class="legend-item" data-toggle="auth"><span class="legend-check"></span><div class="legend-color" style="border-color:#ca8a04;background:#2e261a"></div> Auth / JWT</div>
+  <div class="legend-item" data-toggle="shared"><span class="legend-check"></span><div class="legend-color" style="border-color:#2dd4bf;background:#1a2428"></div> Shared Kernel</div>
+  <div style="margin-top:6px;border-top:1px solid #334155;padding-top:6px">
+    <div class="legend-item" style="cursor:default"><svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="#38bdf8" stroke-width="2"/></svg> Herencia</div>
+    <div class="legend-item" style="cursor:default"><svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="6,3"/></svg> Composici&oacute;n</div>
+    <div class="legend-item" style="cursor:default"><svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,4"/></svg> Uso / Dependencia</div>
+    <div class="legend-item" style="cursor:default"><svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="#a855f7" stroke-width="2" stroke-dasharray="8,4"/></svg> Implementa</div>
+  </div>
+</div>
+<div id="minimap"><div id="minimap-viewport"></div></div>
+
+<script>
+const classData=[
+{id:"RolUsuario",layer:"shared",stereotype:"\u00abenum\u00bb Shared Kernel",file:"app/compartido/dominio.py",desc:"Roles del sistema reconocidos por m\u00faltiples bounded contexts. Shared kernel entre Requerimientos y Usuarios.",pattern:"Shared Kernel (DDD) \u2014 tipo compartido entre bounded contexts para evitar duplicaci\u00f3n.",attrs:["SOLICITANTE = 'solicitante'","OPERADOR = 'operador'","TECNICO = 'tecnico'","SUPERVISOR = 'supervisor'"],methods:[],x:100,y:100},
+{id:"Usuario",layer:"entity",stereotype:"Entidad",file:"app/usuarios/dominio.py",desc:"Entidad que representa un actor del sistema. Cada usuario tiene un rol fijo (RolUsuario) que determina qu\u00e9 acciones puede realizar. El password_hash es un string opaco procesado por bcrypt en la capa de servicio.",pattern:"Entidad de dominio con identidad por ID. Los roles OPERADOR, TECNICO y SUPERVISOR requieren email corporativo @comunicarlos.com.ar.",attrs:["_id: str","_nombre: str","_email: str","_rol: RolUsuario","_password_hash: str","_activo: bool","_fecha_creacion: datetime","_ultimo_acceso: datetime | None"],methods:[{name:"desactivar()",mod:""},{name:"registrar_acceso()",mod:""},{name:"id, nombre, email, rol, ...",mod:"property"}],x:100,y:350},
+{id:"Requerimiento",layer:"entity",stereotype:"\u00ababstract\u00bb Ra\u00edz de Agregado",file:"app/requerimientos/dominio.py",desc:"Ra\u00edz de agregado abstracta que encapsula el ciclo de vida completo: asignaci\u00f3n, trabajo, resoluci\u00f3n, derivaci\u00f3n y reapertura. Protege invariantes de negocio y genera eventos de dominio.",pattern:"Aggregate Root (DDD) + Template Method (_detalle_creacion). Tabla de transiciones _TRANSICIONES_VALIDAS define el grafo de estados v\u00e1lidos.",attrs:["_id: str","_titulo: str","_descripcion: str","_estado: EstadoRequerimiento","_solicitante_id: str","_operador_id: str | None","_tecnico_asignado_id: str | None","_comentarios: list[Comentario]","_eventos: list[Evento]","_eventos_dominio: list[Evento]","_fecha_creacion: datetime","_fecha_actualizacion: datetime"],methods:[{name:"asignar_tecnico(tecnico_id, actor_id, rol)",mod:""},{name:"iniciar_trabajo(tecnico_id)",mod:""},{name:"resolver(tecnico_id)",mod:""},{name:"derivar(origen_id, destino_id, motivo)",mod:""},{name:"agregar_comentario(autor_id, rol, contenido)",mod:""},{name:"recolectar_eventos() \u2192 list[Evento]",mod:""},{name:"tipo \u2192 TipoRequerimiento",mod:"abstract"},{name:"_detalle_creacion() \u2192 str",mod:"abstract"},{name:"_validar_transicion(nuevo_estado)",mod:"private"},{name:"_registrar_evento(tipo, actor_id, detalle)",mod:"private"}],x:850,y:100},
+{id:"Incidente",layer:"entity",stereotype:"Entidad",file:"app/requerimientos/dominio.py",desc:"Requerimiento de tipo incidente. Siempre tiene urgencia y categor\u00eda de incidente. Hereda todo el ciclo de vida de Requerimiento.",pattern:"Herencia con polimorfismo \u2014 comparte ciclo de vida con Solicitud pero agrega urgencia y categor\u00eda propia.",attrs:["_urgencia: Urgencia","_categoria_incidente: CategoriaIncidente"],methods:[{name:"tipo \u2192 TipoRequerimiento.INCIDENTE",mod:"property"},{name:"urgencia \u2192 Urgencia",mod:"property"},{name:"categoria \u2192 CategoriaIncidente",mod:"property"}],x:700,y:580},
+{id:"Solicitud",layer:"entity",stereotype:"Entidad",file:"app/requerimientos/dominio.py",desc:"Requerimiento de tipo solicitud. No tiene urgencia \u2014 solo categor\u00eda de solicitud (alta o baja de servicio).",pattern:"Herencia con polimorfismo \u2014 misma ra\u00edz de agregado que Incidente pero sin urgencia.",attrs:["_categoria_solicitud: CategoriaSolicitud"],methods:[{name:"tipo \u2192 TipoRequerimiento.SOLICITUD",mod:"property"},{name:"categoria \u2192 CategoriaSolicitud",mod:"property"}],x:1050,y:580},
+{id:"EstadoRequerimiento",layer:"enum",stereotype:"\u00abenum\u00bb",file:"app/requerimientos/dominio.py",desc:"Estados del ciclo de vida: ABIERTO \u2192 ASIGNADO \u2192 EN_PROGRESO \u2192 RESUELTO \u2192 REABIERTO",pattern:"Enum est\u00e1ndar de Python. Las transiciones v\u00e1lidas se definen en _TRANSICIONES_VALIDAS del agregado.",attrs:["ABIERTO","ASIGNADO","EN_PROGRESO","RESUELTO","REABIERTO"],methods:[],x:1400,y:100},
+{id:"TipoRequerimiento",layer:"enum",stereotype:"\u00abenum\u00bb",file:"app/requerimientos/dominio.py",desc:"Discriminador de tipo para el polimorfismo Incidente / Solicitud.",pattern:"Enum discriminador \u2014 permite distinguir subtipos sin isinstance.",attrs:["INCIDENTE","SOLICITUD"],methods:[],x:1400,y:300},
+{id:"Urgencia",layer:"enum",stereotype:"\u00abenum\u00bb",file:"app/requerimientos/dominio.py",desc:"Niveles de urgencia aplicables exclusivamente a incidentes.",pattern:"Enum alineado al TP de la c\u00e1tedra.",attrs:["CRITICA","IMPORTANTE","MENOR"],methods:[],x:1650,y:100},
+{id:"CategoriaIncidente",layer:"enum",stereotype:"\u00abenum\u00bb",file:"app/requerimientos/dominio.py",desc:"Clasificaci\u00f3n de incidentes: servicio inaccesible, bloqueo SIM, p\u00e9rdida/destrucci\u00f3n de equipo.",pattern:"Enum \u2014 categor\u00edas definidas por el TP.",attrs:["SERVICIO_INACCESIBLE","BLOQUEO_SIM","PERDIDA_O_DESTRUCCION_EQUIPO"],methods:[],x:1650,y:300},
+{id:"CategoriaSolicitud",layer:"enum",stereotype:"\u00abenum\u00bb",file:"app/requerimientos/dominio.py",desc:"Clasificaci\u00f3n de solicitudes: alta o baja de servicio.",pattern:"Enum \u2014 categor\u00edas definidas por el TP.",attrs:["ALTA_SERVICIO","BAJA_SERVICIO"],methods:[],x:1900,y:100},
+{id:"TipoEvento",layer:"enum",stereotype:"\u00abenum\u00bb",file:"app/requerimientos/dominio.py",desc:"Tipos de eventos de auditor\u00eda: creaci\u00f3n, asignaci\u00f3n, derivaci\u00f3n, inicio, comentario, resoluci\u00f3n, reapertura.",pattern:"Enum \u2014 cada operaci\u00f3n de negocio registra un tipo de evento distinto.",attrs:["CREACION","ASIGNACION","REASIGNACION","DERIVACION","INICIO_TRABAJO","COMENTARIO","RESOLUCION","REAPERTURA"],methods:[],x:1900,y:300},
+{id:"Comentario",layer:"vo",stereotype:"\u00abinmutable\u00bb Value Object",file:"app/requerimientos/dominio.py",desc:"Value object inmutable que representa un comentario. Una vez creado no se puede modificar ni eliminar.",pattern:"Value Object (DDD) \u2014 inmutable, identidad por valor. Incluido como colecci\u00f3n dentro del agregado Requerimiento.",attrs:["_id: str","_autor_id: str","_rol_autor: RolUsuario","_contenido: str","_fecha: datetime"],methods:[{name:"id, autor_id, rol_autor, contenido, fecha",mod:"property"}],x:1400,y:520},
+{id:"Evento",layer:"vo",stereotype:"\u00abinmutable\u00bb Value Object",file:"app/requerimientos/dominio.py",desc:"Value object inmutable de auditor\u00eda. Registra cada acci\u00f3n relevante sobre un requerimiento. Append-only: nunca se elimina ni modifica.",pattern:"Value Object (DDD) \u2014 evento de auditor\u00eda inmutable. Tambi\u00e9n act\u00faa como evento de dominio para el patr\u00f3n Observer.",attrs:["_id: str","_tipo: TipoEvento","_actor_id: str","_detalle: str","_fecha: datetime"],methods:[{name:"id, tipo, actor_id, detalle, fecha",mod:"property"}],x:1400,y:760},
+{id:"ObservadorRequerimiento",layer:"observer",stereotype:"\u00ababstract\u00bb Observer",file:"app/notificaciones/dominio.py",desc:"Interfaz Observer para eventos de requerimiento. Todo observador que quiera recibir notificaciones debe implementar esta interfaz.",pattern:"Patr\u00f3n Observer (GoF) \u2014 interfaz abstracta que desacopla al publicador de los suscriptores.",attrs:[],methods:[{name:"notificar(evento, requerimiento_id)",mod:"abstract"}],x:2200,y:520},
+{id:"DespachadorEventos",layer:"observer",stereotype:"Observer Dispatch",file:"app/notificaciones/dominio.py",desc:"Despacha eventos de dominio a los observadores registrados. Componente puro (sin I/O) que implementa la mec\u00e1nica del patr\u00f3n Observer.",pattern:"Patr\u00f3n Observer (GoF) \u2014 dispatcher que mantiene lista de observadores y les reenv\u00eda eventos.",attrs:["_observadores: list[ObservadorRequerimiento]"],methods:[{name:"registrar(observador)",mod:""},{name:"quitar(observador)",mod:""},{name:"despachar(evento, requerimiento_id)",mod:""}],x:2200,y:760},
+{id:"RequerimientoFactory",layer:"factory",stereotype:"Factory",file:"app/requerimientos/dominio.py",desc:"Factory que centraliza la creaci\u00f3n de Incidentes y Solicitudes con valores por defecto correctos.",pattern:"Patr\u00f3n Factory Method (GoF) \u2014 encapsula la complejidad de construir el agregado con estado inicial v\u00e1lido.",attrs:[],methods:[{name:"crear_incidente(titulo, desc, sol_id, urgencia, cat) \u2192 Incidente",mod:""},{name:"crear_solicitud(titulo, desc, sol_id, cat) \u2192 Solicitud",mod:""}],x:700,y:870},
+{id:"RequerimientoError",layer:"exception",stereotype:"Exception",file:"app/requerimientos/excepciones.py",desc:"Error base para el dominio de requerimientos. Hereda de ValueError.",pattern:"Jerarqu\u00eda de excepciones de dominio \u2014 permite captura granular o gen\u00e9rica.",attrs:[],methods:[],x:2200,y:100},
+{id:"TransicionEstadoInvalida",layer:"exception",stereotype:"Exception",file:"app/requerimientos/excepciones.py",desc:"Se intent\u00f3 una transici\u00f3n de estado no permitida seg\u00fan _TRANSICIONES_VALIDAS.",pattern:"Excepci\u00f3n de dominio espec\u00edfica \u2014 hereda de RequerimientoError.",attrs:[],methods:[],x:2200,y:250},
+{id:"OperacionNoAutorizada",layer:"exception",stereotype:"Exception",file:"app/requerimientos/excepciones.py",desc:"El actor no tiene permiso para realizar esta operaci\u00f3n de dominio.",pattern:"Excepci\u00f3n de dominio espec\u00edfica \u2014 separada de TransicionEstadoInvalida para distinguir permisos de flujo.",attrs:[],methods:[],x:2450,y:250},
+{id:"UsuarioError",layer:"exception",stereotype:"Exception",file:"app/usuarios/excepciones.py",desc:"Error base de la capa de aplicaci\u00f3n de usuarios.",pattern:"Jerarqu\u00eda de excepciones de aplicaci\u00f3n \u2014 separada de excepciones de dominio.",attrs:[],methods:[],x:2450,y:100},
+{id:"UsuarioNoEncontrado",layer:"exception",stereotype:"Exception",file:"app/usuarios/excepciones.py",desc:"No existe un usuario con el ID o email indicado.",pattern:"",attrs:[],methods:[],x:2450,y:380},
+{id:"EmailDuplicado",layer:"exception",stereotype:"Exception",file:"app/usuarios/excepciones.py",desc:"Ya existe un usuario registrado con ese email.",pattern:"",attrs:[],methods:[],x:2700,y:380},
+{id:"CredencialesInvalidas",layer:"exception",stereotype:"Exception",file:"app/usuarios/excepciones.py",desc:"El email no existe o la contrase\u00f1a no coincide con el hash.",pattern:"Mensaje id\u00e9ntico en ambos casos por seguridad.",attrs:[],methods:[],x:2700,y:250},
+{id:"RequerimientoService",layer:"service",stereotype:"Application Service",file:"app/requerimientos/servicios.py",desc:"Casos de uso del m\u00f3dulo de requerimientos. Orquesta repositorio y despacho de eventos. No contiene l\u00f3gica de negocio.",pattern:"Application Service (DDD) \u2014 orquesta entidades, repos y eventos sin contener reglas de negocio.",attrs:["_repo: RepositorioRequerimiento","_despachador: DespachadorEventos"],methods:[{name:"crear_incidente(...) \u2192 str",mod:""},{name:"crear_solicitud(...) \u2192 str",mod:""},{name:"obtener(id) \u2192 Requerimiento",mod:""},{name:"listar() \u2192 list",mod:""},{name:"listar_por_solicitante(id) \u2192 list",mod:""},{name:"listar_por_tecnico(id) \u2192 list",mod:""},{name:"listar_por_estado(estado) \u2192 list",mod:""},{name:"asignar_tecnico(req_id, tec_id, actor_id, rol)",mod:""},{name:"iniciar_trabajo(req_id, tec_id)",mod:""},{name:"resolver(req_id, tec_id)",mod:""},{name:"derivar(req_id, origen, destino, motivo)",mod:""},{name:"agregar_comentario(req_id, autor, rol, contenido)",mod:""}],x:2900,y:520},
+{id:"UsuarioService",layer:"service",stereotype:"Application Service",file:"app/usuarios/servicios.py",desc:"Casos de uso del m\u00f3dulo de usuarios. Orquesta repositorio, hashing de passwords y autenticaci\u00f3n.",pattern:"Application Service (DDD) \u2014 delega validaciones al dominio, hashing al inyectado.",attrs:["_repo: RepositorioUsuario","_hasher: Callable","_verificador: Callable"],methods:[{name:"registrar(nombre, email, rol, password) \u2192 str",mod:""},{name:"autenticar(email, password) \u2192 Usuario",mod:""},{name:"obtener(id) \u2192 Usuario",mod:""},{name:"listar() \u2192 list[Usuario]",mod:""},{name:"desactivar(id)",mod:""}],x:2900,y:870},
+{id:"RepositorioRequerimiento",layer:"repo",stereotype:"\u00ababstract\u00bb Repository",file:"app/requerimientos/repositorio.py",desc:"Contrato abstracto de persistencia para el agregado Requerimiento.",pattern:"Repository Pattern (DDD) \u2014 abstracci\u00f3n que permite inyectar implementaci\u00f3n en memoria para tests o MongoDB para producci\u00f3n.",attrs:[],methods:[{name:"guardar(requerimiento)",mod:"abstract"},{name:"obtener_por_id(id) \u2192 Requerimiento | None",mod:"abstract"},{name:"listar() \u2192 list",mod:"abstract"},{name:"listar_por_solicitante(id) \u2192 list",mod:"abstract"},{name:"listar_por_tecnico(id) \u2192 list",mod:"abstract"},{name:"listar_por_estado(estado) \u2192 list",mod:"abstract"}],x:3300,y:520},
+{id:"RepositorioUsuario",layer:"repo",stereotype:"\u00ababstract\u00bb Repository",file:"app/usuarios/repositorio.py",desc:"Contrato abstracto de persistencia para la entidad Usuario.",pattern:"Repository Pattern (DDD) \u2014 misma estrategia que RepositorioRequerimiento.",attrs:[],methods:[{name:"guardar(usuario)",mod:"abstract"},{name:"obtener_por_id(id) \u2192 Usuario | None",mod:"abstract"},{name:"obtener_por_email(email) \u2192 Usuario | None",mod:"abstract"},{name:"listar() \u2192 list[Usuario]",mod:"abstract"}],x:3300,y:870},
+{id:"MongoRequerimientoRepo",layer:"repo",stereotype:"Repository Impl",file:"app/infraestructura/repo_requerimientos.py",desc:"Implementaci\u00f3n MongoDB del repositorio de requerimientos. Convierte entre documentos BSON y entidades de dominio.",pattern:"Adapter (Hexagonal) \u2014 implementa la interfaz del dominio contra MongoDB.",attrs:["_coleccion: Collection"],methods:[{name:"guardar(requerimiento)",mod:""},{name:"obtener_por_id(id)",mod:""},{name:"listar()",mod:""},{name:"listar_por_solicitante(id)",mod:""},{name:"listar_por_tecnico(id)",mod:""},{name:"listar_por_estado(estado)",mod:""}],x:3650,y:520},
+{id:"MongoUsuarioRepo",layer:"repo",stereotype:"Repository Impl",file:"app/infraestructura/repo_usuarios.py",desc:"Implementaci\u00f3n MongoDB del repositorio de usuarios.",pattern:"Adapter (Hexagonal) \u2014 implementa la interfaz del dominio contra MongoDB.",attrs:["_coleccion: Collection"],methods:[{name:"guardar(usuario)",mod:""},{name:"obtener_por_id(id)",mod:""},{name:"obtener_por_email(email)",mod:""},{name:"listar()",mod:""}],x:3650,y:870},
+{id:"IncidenteCrearIn",layer:"schema",stereotype:"DTO Input",file:"app/requerimientos/schemas.py",desc:"Datos de entrada para abrir un nuevo incidente. Validaciones Pydantic: titulo min 5, descripcion min 10.",pattern:"DTO (Data Transfer Object) \u2014 a\u00edsla el transporte HTTP del dominio.",attrs:["titulo: str (5-200)","descripcion: str (10-2000)","solicitante_id: str","urgencia: Urgencia","categoria: CategoriaIncidente"],methods:[],x:100,y:1150},
+{id:"SolicitudCrearIn",layer:"schema",stereotype:"DTO Input",file:"app/requerimientos/schemas.py",desc:"Datos de entrada para abrir una nueva solicitud de servicio.",pattern:"DTO \u2014 mismas reglas que IncidenteCrearIn pero sin urgencia.",attrs:["titulo: str (5-200)","descripcion: str (10-2000)","solicitante_id: str","categoria: CategoriaSolicitud"],methods:[],x:400,y:1150},
+{id:"AsignarTecnicoIn",layer:"schema",stereotype:"DTO Input",file:"app/requerimientos/schemas.py",desc:"T\u00e9cnico a asignar a un requerimiento.",pattern:"DTO minimal \u2014 solo contiene tecnico_id.",attrs:["tecnico_id: str"],methods:[],x:700,y:1150},
+{id:"DerivarRequerimientoIn",layer:"schema",stereotype:"DTO Input",file:"app/requerimientos/schemas.py",desc:"Datos para derivar un requerimiento a otro t\u00e9cnico. Motivo m\u00ednimo 5 caracteres.",pattern:"DTO",attrs:["tecnico_destino_id: str","motivo: str (5-500)"],methods:[],x:900,y:1150},
+{id:"ComentarioAgregarIn",layer:"schema",stereotype:"DTO Input",file:"app/requerimientos/schemas.py",desc:"Contenido del comentario a agregar.",pattern:"DTO",attrs:["contenido: str (1-2000)"],methods:[],x:1150,y:1150},
+{id:"RequerimientoOut",layer:"schema",stereotype:"DTO Output",file:"app/requerimientos/schemas.py",desc:"Representaci\u00f3n p\u00fablica de un requerimiento. Campos opcionales dependen del tipo.",pattern:"DTO Output + Class Method desde_entidad() para mapeo dominio a DTO.",attrs:["id, titulo, descripcion, tipo","estado, solicitante_id","operador_id, tecnico_asignado_id","urgencia?, categoria_incidente?","categoria_solicitud?","comentarios: list[ComentarioOut]","eventos: list[EventoOut]"],methods:[{name:"desde_entidad(req) \u2192 RequerimientoOut",mod:""}],x:1400,y:1150},
+{id:"UsuarioCrearIn",layer:"schema",stereotype:"DTO Input",file:"app/usuarios/schemas.py",desc:"Datos para registrar un nuevo usuario. Email validado con EmailStr. Password min 6, max 72.",pattern:"DTO con EmailStr de Pydantic para validaci\u00f3n.",attrs:["nombre: str","email: EmailStr","rol: RolUsuario","password: str (6-72)"],methods:[],x:1750,y:1150},
+{id:"UsuarioAutenticarIn",layer:"schema",stereotype:"DTO Input",file:"app/usuarios/schemas.py",desc:"Credenciales para autenticar: email + password.",pattern:"DTO",attrs:["email: EmailStr","password: str"],methods:[],x:2050,y:1150},
+{id:"UsuarioOut",layer:"schema",stereotype:"DTO Output",file:"app/usuarios/schemas.py",desc:"Representaci\u00f3n p\u00fablica de un usuario. Excluye deliberadamente password_hash.",pattern:"DTO Output \u2014 nunca expone datos sensibles.",attrs:["id, nombre, email","rol, activo","fecha_creacion, ultimo_acceso"],methods:[{name:"desde_entidad(usuario) \u2192 UsuarioOut",mod:""}],x:2300,y:1150},
+{id:"TokenOut",layer:"schema",stereotype:"DTO Output",file:"app/usuarios/schemas.py",desc:"Respuesta de autenticaci\u00f3n exitosa con JWT Bearer.",pattern:"DTO",attrs:["access_token: str","token_type: str = 'bearer'"],methods:[],x:2550,y:1150},
+{id:"UsuariosRouter",layer:"router",stereotype:"HTTP Router",file:"app/usuarios/router.py",desc:"Endpoints HTTP: POST /usuarios/ (registro), POST /usuarios/autenticar (login), GET /usuarios/ (listar), GET /usuarios/{id}, DELETE /usuarios/{id} (desactivar).",pattern:"Router FastAPI \u2014 delega toda la l\u00f3gica al Application Service.",attrs:[],methods:[{name:"POST / \u2014 registrar",mod:""},{name:"POST /autenticar \u2014 login JWT",mod:""},{name:"GET / \u2014 listar (SUPER/OPER)",mod:""},{name:"GET /{id} \u2014 detalle",mod:""},{name:"DELETE /{id} \u2014 desactivar (SUPER)",mod:""}],x:2900,y:1150},
+{id:"RequerimientosRouter",layer:"router",stereotype:"HTTP Router",file:"app/requerimientos/router.py",desc:"Endpoints HTTP: POST incidentes/solicitudes, GET listar/detalle, POST asignar/iniciar/resolver/derivar/comentarios.",pattern:"Router FastAPI \u2014 traduce excepciones de dominio a HTTP status codes.",attrs:[],methods:[{name:"POST /incidentes \u2014 crear",mod:""},{name:"POST /solicitudes \u2014 crear",mod:""},{name:"GET / \u2014 listar (filtrado por rol)",mod:""},{name:"GET /{id} \u2014 detalle",mod:""},{name:"POST /{id}/asignar \u2014 OPERADOR",mod:""},{name:"POST /{id}/iniciar \u2014 TECNICO",mod:""},{name:"POST /{id}/resolver \u2014 TECNICO",mod:""},{name:"POST /{id}/derivar \u2014 TECNICO",mod:""},{name:"POST /{id}/comentarios \u2014 todos",mod:""}],x:3300,y:1150},
+{id:"auth_module",layer:"auth",stereotype:"M\u00f3dulo Auth",file:"app/auth.py",desc:"L\u00f3gica pura de JWT: creaci\u00f3n y verificaci\u00f3n de tokens. Claims: sub (usuario_id), rol, iat, exp. Algoritmo HS256.",pattern:"M\u00f3dulo puro sin dependencia de FastAPI. SECRET_KEY de variable de entorno.",attrs:["SECRET_KEY: str","ALGORITHM: str = 'HS256'","EXPIRACION_MINUTOS: int"],methods:[{name:"crear_token(usuario_id, rol) \u2192 str",mod:""},{name:"verificar_token(token) \u2192 UsuarioActual",mod:""}],x:3650,y:1150},
+{id:"deps_module",layer:"auth",stereotype:"Dependency Injection",file:"app/deps.py",desc:"Dependencias FastAPI: bcrypt hashing, OAuth2PasswordBearer, get_current_user, requiere_rol. Inyecta servicios con repos reales.",pattern:"Composition Root (DDD) \u2014 punto donde se ensamblan las dependencias concretas.",attrs:["_oauth2_scheme: OAuth2PasswordBearer"],methods:[{name:"get_current_user(token) \u2192 UsuarioActual",mod:""},{name:"requiere_rol(*roles) \u2192 Depends",mod:""},{name:"get_requerimiento_service() \u2192 Service",mod:""},{name:"get_usuario_service() \u2192 Service",mod:""}],x:3650,y:1400}
+];
+
+const connections=[
+{from:"Incidente",to:"Requerimiento",type:"inherit"},
+{from:"Solicitud",to:"Requerimiento",type:"inherit"},
+{from:"TransicionEstadoInvalida",to:"RequerimientoError",type:"inherit"},
+{from:"OperacionNoAutorizada",to:"RequerimientoError",type:"inherit"},
+{from:"UsuarioNoEncontrado",to:"UsuarioError",type:"inherit"},
+{from:"EmailDuplicado",to:"UsuarioError",type:"inherit"},
+{from:"CredencialesInvalidas",to:"UsuarioError",type:"inherit"},
+{from:"Requerimiento",to:"Comentario",type:"compose"},
+{from:"Requerimiento",to:"Evento",type:"compose"},
+{from:"DespachadorEventos",to:"ObservadorRequerimiento",type:"compose"},
+{from:"MongoRequerimientoRepo",to:"RepositorioRequerimiento",type:"implement"},
+{from:"MongoUsuarioRepo",to:"RepositorioUsuario",type:"implement"},
+{from:"Requerimiento",to:"EstadoRequerimiento",type:"use"},
+{from:"Incidente",to:"Urgencia",type:"use"},
+{from:"Incidente",to:"CategoriaIncidente",type:"use"},
+{from:"Solicitud",to:"CategoriaSolicitud",type:"use"},
+{from:"Evento",to:"TipoEvento",type:"use"},
+{from:"Comentario",to:"RolUsuario",type:"use"},
+{from:"Usuario",to:"RolUsuario",type:"use"},
+{from:"RequerimientoFactory",to:"Incidente",type:"use"},
+{from:"RequerimientoFactory",to:"Solicitud",type:"use"},
+{from:"RequerimientoService",to:"RepositorioRequerimiento",type:"use"},
+{from:"RequerimientoService",to:"DespachadorEventos",type:"use"},
+{from:"RequerimientoService",to:"RequerimientoFactory",type:"use"},
+{from:"UsuarioService",to:"RepositorioUsuario",type:"use"},
+{from:"UsuariosRouter",to:"UsuarioService",type:"use"},
+{from:"RequerimientosRouter",to:"RequerimientoService",type:"use"},
+{from:"UsuariosRouter",to:"auth_module",type:"use"},
+{from:"RequerimientosRouter",to:"auth_module",type:"use"},
+{from:"deps_module",to:"auth_module",type:"use"},
+{from:"RequerimientoOut",to:"Requerimiento",type:"use"},
+{from:"UsuarioOut",to:"Usuario",type:"use"}
+];
+
+const world=document.getElementById('world');
+const svgEl=document.getElementById('connections');
+const canvas=document.getElementById('canvas');
+const nodeElements={};
+let activeFilter='all';
+const layerVisibility={};
+
+classData.forEach(cls=>{
+  layerVisibility[cls.layer]=true;
+  const node=document.createElement('div');
+  node.className='uml-node layer-'+cls.layer;
+  node.id='node-'+cls.id;
+  node.style.left=cls.x+'px';
+  node.style.top=cls.y+'px';
+  node.dataset.layer=cls.layer;
+  node.dataset.classId=cls.id;
+  let html='<div class="node-tooltip">'+cls.file+'</div>';
+  html+='<div class="node-header">';
+  if(cls.stereotype) html+='<div class="node-stereotype">'+cls.stereotype+'</div>';
+  html+='<div class="node-title">'+cls.id+'</div></div>';
+  if(cls.attrs.length){
+    html+='<div class="node-section"><div class="section-label">Atributos</div>';
+    cls.attrs.forEach(function(a){html+='<div class="attr-line">'+a+'</div>';});
+    html+='</div>';
+  }
+  if(cls.methods.length){
+    html+='<div class="node-section"><div class="section-label">M\u00e9todos</div>';
+    cls.methods.forEach(function(m){
+      var mod=m.mod||'';
+      html+='<div class="method-line '+mod+'">'+m.name+'</div>';
+    });
+    html+='</div>';
+  }
+  node.innerHTML=html;
+  world.appendChild(node);
+  nodeElements[cls.id]=node;
+  node.addEventListener('dblclick',function(e){e.stopPropagation();openClassModal(cls);});
+});
+
+var dragNode=null,dragOffsetX=0,dragOffsetY=0;
+world.addEventListener('mousedown',function(e){
+  var node=e.target.closest('.uml-node');
+  if(!node)return;
+  dragNode=node;
+  var rect=node.getBoundingClientRect();
+  dragOffsetX=e.clientX-rect.left;
+  dragOffsetY=e.clientY-rect.top;
+  node.style.zIndex=50;
+  e.preventDefault();
+});
+document.addEventListener('mousemove',function(e){
+  if(!dragNode)return;
+  var worldRect=world.getBoundingClientRect();
+  var x=e.clientX-worldRect.left-dragOffsetX+canvas.scrollLeft;
+  var y=e.clientY-worldRect.top-dragOffsetY+canvas.scrollTop;
+  x=Math.max(0,x);y=Math.max(0,y);
+  dragNode.style.left=x+'px';
+  dragNode.style.top=y+'px';
+  var cls=classData.find(function(c){return c.id===dragNode.dataset.classId;});
+  if(cls){cls.x=x;cls.y=y;}
+  drawConnections();updateMinimap();
+});
+document.addEventListener('mouseup',function(){
+  if(dragNode){dragNode.style.zIndex=10;dragNode=null;}
+});
+
+function getNodeCenter(id){
+  var el=nodeElements[id];
+  if(!el||el.style.display==='none')return null;
+  var x=parseInt(el.style.left)+el.offsetWidth/2;
+  var y=parseInt(el.style.top)+el.offsetHeight/2;
+  return{x:x,y:y};
+}
+function getNodeEdge(fromCenter,toCenter,nodeId){
+  var el=nodeElements[nodeId];
+  if(!el)return fromCenter;
+  var w=el.offsetWidth/2;
+  var h=el.offsetHeight/2;
+  var cx=parseInt(el.style.left)+w;
+  var cy=parseInt(el.style.top)+h;
+  var dx=toCenter.x-fromCenter.x;
+  var dy=toCenter.y-fromCenter.y;
+  var angle=Math.atan2(dy,dx);
+  var absCos=Math.abs(Math.cos(angle));
+  var absSin=Math.abs(Math.sin(angle));
+  var dist;
+  if(absCos*h>absSin*w){dist=w/absCos;}else{dist=h/absSin;}
+  return{x:cx+Math.cos(angle)*dist,y:cy+Math.sin(angle)*dist};
+}
+function drawConnections(){
+  while(svgEl.children.length>1)svgEl.removeChild(svgEl.lastChild);
+  connections.forEach(function(conn){
+    var from=getNodeCenter(conn.from);
+    var to=getNodeCenter(conn.to);
+    if(!from||!to)return;
+    var fromEdge=getNodeEdge(from,to,conn.from);
+    var toEdge=getNodeEdge(to,from,conn.to);
+    var line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',fromEdge.x);line.setAttribute('y1',fromEdge.y);
+    line.setAttribute('x2',toEdge.x);line.setAttribute('y2',toEdge.y);
+    line.classList.add('conn-'+conn.type);
+    if(conn.type==='inherit')line.setAttribute('marker-end','url(#arrow-inherit)');
+    else if(conn.type==='use')line.setAttribute('marker-end','url(#arrow-use)');
+    else if(conn.type==='compose')line.setAttribute('marker-start','url(#diamond-compose)');
+    else if(conn.type==='implement')line.setAttribute('marker-end','url(#arrow-implement)');
+    svgEl.appendChild(line);
+  });
+}
+
+document.querySelectorAll('.filter-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    activeFilter=btn.dataset.layer;
+    applyFilter();
+  });
+});
+document.getElementById('resetBtn').addEventListener('click',function(){
+  activeFilter='all';
+  Object.keys(layerVisibility).forEach(function(k){layerVisibility[k]=true;});
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelector('[data-layer="all"]').classList.add('active');
+  document.querySelectorAll('.legend-item[data-toggle]').forEach(function(li){li.classList.remove('off');});
+  applyFilter();
+});
+function applyFilter(){
+  classData.forEach(function(cls){
+    var el=nodeElements[cls.id];
+    var layerOn=layerVisibility[cls.layer]!==false;
+    var filterOn=activeFilter==='all'||cls.layer===activeFilter;
+    if(layerOn&&filterOn){el.style.display='';el.classList.remove('dimmed');}
+    else if(layerOn&&activeFilter!=='all'){el.style.display='';el.classList.add('dimmed');}
+    else{el.style.display='none';el.classList.remove('dimmed');}
+  });
+  drawConnections();updateMinimap();
+}
+
+document.getElementById('searchInput').addEventListener('input',function(){
+  var q=this.value.toLowerCase().trim();
+  document.querySelectorAll('.uml-node').forEach(function(n){n.classList.remove('highlight');});
+  if(!q)return;
+  classData.forEach(function(cls){
+    if(cls.id.toLowerCase().indexOf(q)!==-1||(cls.file&&cls.file.toLowerCase().indexOf(q)!==-1)){
+      var el=nodeElements[cls.id];
+      el.classList.add('highlight');
+      if(q.length>2){
+        var x=parseInt(el.style.left)-canvas.clientWidth/2+el.offsetWidth/2;
+        var y=parseInt(el.style.top)-canvas.clientHeight/2+el.offsetHeight/2;
+        canvas.scrollTo({left:Math.max(0,x),top:Math.max(0,y),behavior:'smooth'});
+      }
+    }
+  });
+});
+
+document.querySelectorAll('.legend-item[data-toggle]').forEach(function(li){
+  li.addEventListener('click',function(){
+    var layer=li.dataset.toggle;
+    li.classList.toggle('off');
+    layerVisibility[layer]=!li.classList.contains('off');
+    applyFilter();
+  });
+});
+
+function openClassModal(cls){
+  document.getElementById('modal-title').textContent=cls.id;
+  var html='';
+  html+='<div class="detail-section file"><div class="detail-label file-label">Archivo</div><div class="detail-text"><code>'+cls.file+'</code></div></div>';
+  html+='<div class="detail-section desc"><div class="detail-label desc-label">Descripci\u00f3n</div><div class="detail-text">'+cls.desc+'</div></div>';
+  if(cls.pattern){html+='<div class="detail-section pattern"><div class="detail-label pattern-label">Patr\u00f3n / Decisi\u00f3n de Dise\u00f1o</div><div class="detail-text">'+cls.pattern+'</div></div>';}
+  if(cls.attrs.length){html+='<div class="detail-section" style="background:#111827;border-color:#334155"><div class="detail-label" style="color:#38bdf8">Atributos ('+cls.attrs.length+')</div><div class="detail-text">'+cls.attrs.map(function(a){return '<code>'+a+'</code>';}).join('<br>')+'</div></div>';}
+  if(cls.methods.length){html+='<div class="detail-section" style="background:#111827;border-color:#334155"><div class="detail-label" style="color:#a78bfa">M\u00e9todos ('+cls.methods.length+')</div><div class="detail-text">'+cls.methods.map(function(m){return '<code>'+m.name+'</code>';}).join('<br>')+'</div></div>';}
+  document.getElementById('modal-body').innerHTML=html;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('show');}
+
+var minimapEl=document.getElementById('minimap');
+var minimapVP=document.getElementById('minimap-viewport');
+var WORLD_W=6000,WORLD_H=4500;
+var MM_W=200,MM_H=150;
+function updateMinimap(){
+  var existingCanvas=minimapEl.querySelector('canvas');
+  if(existingCanvas)existingCanvas.remove();
+  var c=document.createElement('canvas');
+  c.width=MM_W;c.height=MM_H;
+  c.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%';
+  minimapEl.insertBefore(c,minimapVP);
+  var ctx=c.getContext('2d');
+  ctx.clearRect(0,0,MM_W,MM_H);
+  var colors={entity:'#4f46e5',vo:'#22c55e','enum':'#eab308',factory:'#d97706',exception:'#f87171',service:'#06b6d4',repo:'#f97316',schema:'#818cf8',router:'#14b8a6',observer:'#a855f7',auth:'#ca8a04',shared:'#2dd4bf'};
+  classData.forEach(function(cls){
+    var el=nodeElements[cls.id];
+    if(el.style.display==='none')return;
+    var x=cls.x/WORLD_W*MM_W;
+    var y=cls.y/WORLD_H*MM_H;
+    ctx.fillStyle=colors[cls.layer]||'#64748b';
+    ctx.fillRect(x-2,y-2,5,4);
+  });
+  var vpW=canvas.clientWidth/WORLD_W*MM_W;
+  var vpH=canvas.clientHeight/WORLD_H*MM_H;
+  var vpX=canvas.scrollLeft/WORLD_W*MM_W;
+  var vpY=canvas.scrollTop/WORLD_H*MM_H;
+  minimapVP.style.width=vpW+'px';
+  minimapVP.style.height=vpH+'px';
+  minimapVP.style.left=vpX+'px';
+  minimapVP.style.top=vpY+'px';
+}
+canvas.addEventListener('scroll',updateMinimap);
+var mmDrag=false;
+minimapEl.addEventListener('mousedown',function(e){mmDrag=true;mmNavigate(e);});
+document.addEventListener('mousemove',function(e){if(mmDrag)mmNavigate(e);});
+document.addEventListener('mouseup',function(){mmDrag=false;});
+function mmNavigate(e){
+  var rect=minimapEl.getBoundingClientRect();
+  var x=(e.clientX-rect.left)/MM_W*WORLD_W-canvas.clientWidth/2;
+  var y=(e.clientY-rect.top)/MM_H*WORLD_H-canvas.clientHeight/2;
+  canvas.scrollTo({left:Math.max(0,x),top:Math.max(0,y)});
+}
+
+var panning=false,panStartX=0,panStartY=0;
+canvas.addEventListener('mousedown',function(e){
+  if(e.target.closest('.uml-node'))return;
+  panning=true;
+  panStartX=e.clientX+canvas.scrollLeft;
+  panStartY=e.clientY+canvas.scrollTop;
+  canvas.classList.add('grabbing');
+});
+document.addEventListener('mousemove',function(e){
+  if(!panning)return;
+  canvas.scrollLeft=panStartX-e.clientX;
+  canvas.scrollTop=panStartY-e.clientY;
+});
+document.addEventListener('mouseup',function(){panning=false;canvas.classList.remove('grabbing');});
+
+drawConnections();updateMinimap();
+</script>
+</body>
+</html>

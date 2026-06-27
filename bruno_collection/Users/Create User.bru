@@ -1,0 +1,19 @@
+meta {
+  name: Create User
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8000/users/
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Admin Principal",
+    "email": "admin@comunicarlos.com",
+    "role": "admin"
+  }
+}

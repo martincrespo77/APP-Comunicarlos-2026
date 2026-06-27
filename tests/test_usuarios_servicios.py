@@ -39,8 +39,8 @@ class FakeRepositorioUsuario(RepositorioUsuario):
             None,
         )
 
-    def listar(self) -> list[Usuario]:
-        return list(self._por_id.values())
+    def listar(self, skip: int = 0, limit: int = 100) -> list[Usuario]:
+        return list(self._por_id.values())[skip : skip + limit]
 
 
 # ── Callables triviales ───────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ class TestDesactivarUsuario(unittest.TestCase):
         self.servicio = _hacer_servicio()
         self.id_ = self.servicio.registrar(
             nombre="Marcos",
-            email="marcos@empresa.com",
+            email="marcos@comunicarlos.com.ar",
             rol=RolUsuario.SUPERVISOR,
             password_plano="pw",
         )

@@ -2340,14 +2340,25 @@ async function renderDiagramas(el) {
             if (!match) throw new Error('No se encontró un bloque "mermaid" válido en el Markdown.');
             const mermaidCode = match[1];
 
-            mermaid.initialize({ startOnLoad: false, theme: 'dark', maxTextSize: 90000 });
-            const { svg } = await mermaid.render('mermaid-svg', mermaidCode);
+            mermaid.initialize({ startOnLoad: false, theme: 'dark', maxTextSize: 90000, securityLevel: 'loose', logLevel: 5 });
+            const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), mermaidCode);
             content.innerHTML = svg;
             
             const svgEl = content.querySelector('svg');
             if (svgEl) {
                 svgEl.style.maxWidth = 'none';
-                svgEl.style.width = 'auto';
+                // Evitar que el SVG colapse a 0x0 por estar en un div con position: absolute
+                const viewBox = svgEl.getAttribute('viewBox');
+                if (viewBox) {
+                    const parts = viewBox.split(' ');
+                    if (parts.length === 4) {
+                        svgEl.style.width = parts[2] + 'px';
+                        svgEl.style.height = parts[3] + 'px';
+                    }
+                } else {
+                    // Fallback si no hay viewBox
+                    svgEl.style.width = '1200px';
+                }
             }
         } catch(e) {
             content.innerHTML = `<div style="color:var(--danger); padding:20px;"><i class="fa-solid fa-triangle-exclamation"></i> Error al cargar el diagrama: ${e.message}</div>`;

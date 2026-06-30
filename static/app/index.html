@@ -2332,7 +2332,7 @@ async function renderDiagramas(el) {
         content.innerHTML = '<div style="color:var(--info); padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Cargando y procesando diagrama...</div>';
         window.resetZoom();
         try {
-            const resp = await fetch(`/docs/${filename}`);
+            const resp = await fetch(`docs/${filename}`);
             if (!resp.ok) throw new Error(`Archivo no encontrado o error HTTP ${resp.status}`);
             const md = await resp.text();
             

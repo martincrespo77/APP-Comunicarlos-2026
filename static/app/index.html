@@ -1027,6 +1027,7 @@
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
 
@@ -1370,6 +1371,9 @@ function buildSidebar() {
     if (['operador', 'supervisor'].includes(rol)) {
         html += `<li class="nav-header">Administración</li>`;
         html += `<li class="nav-item" data-page="usuarios"><i class="fa-solid fa-users"></i> <span>Usuarios</span></li>`;
+        if (rol === 'supervisor') {
+            html += `<li class="nav-item" data-page="diagramas"><i class="fa-solid fa-project-diagram"></i> <span>Diagramas</span></li>`;
+        }
     }
 
     if (['solicitante', 'operador', 'supervisor'].includes(rol)) {
@@ -1411,6 +1415,7 @@ async function navigate(page, data = null) {
             case 'nuevo-incidente': renderFormIncidente(main); break;
             case 'nueva-solicitud': renderFormSolicitud(main); break;
             case 'detalle-req': await renderDetalleRequerimiento(main, data); break;
+            case 'diagramas': await renderDiagramas(main); break;
             default: main.innerHTML = '<div class="empty-state"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><p>Página no encontrada</p></div>';
         }
     } catch (err) {
@@ -2240,6 +2245,114 @@ async function renderUsuarios(el) {
             } catch (e) { toast(e.detail || 'Error', 'error'); }
         });
     });
+}
+
+// ════════════════════════════════════════════════════════════
+//  DIAGRAMAS PARA SUPERVISOR
+// ════════════════════════════════════════════════════════════
+async function renderDiagramas(el) {
+    if (currentUser.rol !== 'supervisor') {
+        el.innerHTML = '<div class="empty-state"><p>Acceso denegado</p></div>';
+        return;
+    }
+
+    let html = `
+        <div class="content-header">
+            <h2><i class="fa-solid fa-project-diagram"></i> Diagramas del Sistema</h2>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px; overflow-x:auto; padding-bottom:5px;">
+            <button class="btn btn-primary btn-sm" onclick="loadDiagram('diagrama_clases_aplicacion.md')">Clases: Aplicación</button>
+            <button class="btn btn-primary btn-sm" onclick="loadDiagram('diagrama_clases_dominio.md')">Clases: Dominio</button>
+            <button class="btn btn-primary btn-sm" onclick="loadDiagram('diagramas_logica_negocio.md')">Lógica de Negocio</button>
+            
+            <div style="margin-left:auto; display:flex; gap:5px;">
+                <button class="btn btn-secondary btn-sm" onclick="zoomDiagram(0.2)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                <button class="btn btn-secondary btn-sm" onclick="zoomDiagram(-0.2)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                <button class="btn btn-secondary btn-sm" onclick="resetZoom()"><i class="fa-solid fa-compress"></i></button>
+            </div>
+        </div>
+
+        <div class="card card-outline card-primary" style="flex:1; display:flex; flex-direction:column; overflow:hidden; min-height: 70vh; position:relative; background:#0f172a;">
+            <div id="diagram-container" style="flex:1; overflow:hidden; position:relative; cursor:grab;">
+                <div id="diagram-content" style="transform-origin: 0 0; position:absolute; left:0; top:0; padding:20px; transition: transform 0.1s ease-out;">
+                    <div style="color:#64748b; padding:20px;">Seleccioná un diagrama usando los botones de arriba.</div>
+                </div>
+            </div>
+        </div>
+    `;
+    el.innerHTML = html;
+
+    window.diagramScale = 1;
+    window.diagramX = 0;
+    window.diagramY = 0;
+    let isDragging = false, startX, startY;
+
+    const container = $('diagram-container');
+    const content = $('diagram-content');
+
+    window.updateTransform = () => {
+        content.style.transform = `translate(${window.diagramX}px, ${window.diagramY}px) scale(${window.diagramScale})`;
+    };
+
+    window.zoomDiagram = (delta) => {
+        window.diagramScale = Math.max(0.2, window.diagramScale + delta);
+        window.updateTransform();
+    };
+
+    window.resetZoom = () => {
+        window.diagramScale = 1;
+        window.diagramX = 0;
+        window.diagramY = 0;
+        window.updateTransform();
+    };
+
+    container.addEventListener('mousedown', e => {
+        isDragging = true;
+        startX = e.clientX - window.diagramX;
+        startY = e.clientY - window.diagramY;
+        container.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        container.style.cursor = 'grab';
+    });
+    window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        window.diagramX = e.clientX - startX;
+        window.diagramY = e.clientY - startY;
+        window.updateTransform();
+    });
+    container.addEventListener('wheel', e => {
+        e.preventDefault();
+        window.zoomDiagram(e.deltaY > 0 ? -0.1 : 0.1);
+    });
+
+    window.loadDiagram = async (filename) => {
+        content.innerHTML = '<div style="color:var(--info); padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Cargando y procesando diagrama...</div>';
+        window.resetZoom();
+        try {
+            const resp = await fetch(`/docs/${filename}`);
+            if (!resp.ok) throw new Error(`Archivo no encontrado o error HTTP ${resp.status}`);
+            const md = await resp.text();
+            
+            const match = md.match(/```mermaid[\s\S]*?\n([\s\S]*?)\n```/);
+            if (!match) throw new Error('No se encontró un bloque "mermaid" válido en el Markdown.');
+            const mermaidCode = match[1];
+
+            mermaid.initialize({ startOnLoad: false, theme: 'dark', maxTextSize: 90000 });
+            const { svg } = await mermaid.render('mermaid-svg', mermaidCode);
+            content.innerHTML = svg;
+            
+            const svgEl = content.querySelector('svg');
+            if (svgEl) {
+                svgEl.style.maxWidth = 'none';
+                svgEl.style.width = 'auto';
+            }
+        } catch(e) {
+            content.innerHTML = `<div style="color:var(--danger); padding:20px;"><i class="fa-solid fa-triangle-exclamation"></i> Error al cargar el diagrama: ${e.message}</div>`;
+        }
+    };
 }
 </script>
 

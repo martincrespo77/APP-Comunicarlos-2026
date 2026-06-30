@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.requerimientos.excepciones import RequerimientoError
@@ -132,8 +132,5 @@ if os.path.isdir(_app_dir):
 
 @app.get("/", include_in_schema=False)
 def portal():
-    """Portal de bienvenida con links a todos los recursos."""
-    index = os.path.join(_static_dir, "index.html")
-    if os.path.isfile(index):
-        return FileResponse(index)
-    return {"message": "Mesa de Ayuda — Comunicarlos", "docs": "/docs"}
+    """Redirecciona directamente a la aplicación web."""
+    return RedirectResponse(url="/app/")

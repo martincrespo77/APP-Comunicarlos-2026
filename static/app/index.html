@@ -1751,6 +1751,15 @@ async function renderDetalleRequerimiento(el, reqId) {
     const req = await api('GET', `/requerimientos/${reqId}`);
     const rol = currentUser.rol;
 
+    let usersMap = {};
+    try {
+        const users = await api('GET', '/usuarios/');
+        users.forEach(u => { usersMap[u.id] = u.nombre; });
+    } catch(e) {}
+    
+    const solicitanteName = usersMap[req.solicitante_id] || req.solicitante_id;
+    const tecnicoName = req.tecnico_asignado_id ? (usersMap[req.tecnico_asignado_id] || req.tecnico_asignado_id) : '';
+
     let html = `
         <div class="content-header">
             <h2>
@@ -1769,8 +1778,8 @@ async function renderDetalleRequerimiento(el, reqId) {
             <div class="detail-field"><div class="label">Tipo</div><div class="value">${req.tipo === 'incidente' ? '🚨 Incidente' : '📝 Solicitud'}</div></div>
             <div class="detail-field"><div class="label">Estado Actual</div><div class="value">${estadoBadge(req.estado)}</div></div>
             <div class="detail-field"><div class="label">Nivel Urgencia</div><div class="value">${urgenciaBadge(req.urgencia)}</div></div>
-            <div class="detail-field"><div class="label">ID Solicitante</div><div class="value" style="font-family:monospace; font-size:0.8rem;">${req.solicitante_id}</div></div>
-            <div class="detail-field"><div class="label">Técnico Asignado</div><div class="value">${req.tecnico_asignado_id ? `<i class="fa-solid fa-user-gear"></i> ${req.tecnico_asignado_id}` : '<em>Sin asignar</em>'}</div></div>
+            <div class="detail-field"><div class="label">Solicitante</div><div class="value">${escapeHtml(solicitanteName)}</div></div>
+            <div class="detail-field"><div class="label">Técnico Asignado</div><div class="value">${req.tecnico_asignado_id ? `<i class="fa-solid fa-user-gear"></i> ${escapeHtml(tecnicoName)}` : '<em>Sin asignar</em>'}</div></div>
             <div class="detail-field"><div class="label">Categoría Asociada</div><div class="value">${req.categoria_incidente || req.categoria_solicitud || '—'}</div></div>
             <div class="detail-field"><div class="label">Fecha Creación</div><div class="value">${formatDate(req.fecha_creacion)}</div></div>
         </div>`;

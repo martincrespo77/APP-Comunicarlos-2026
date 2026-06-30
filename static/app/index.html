@@ -1894,7 +1894,18 @@ $('modal-overlay').addEventListener('click', (e) => {
     if (e.target === $('modal-overlay')) closeModal();
 });
 
-function openModalAsignar(reqId) {
+async function openModalAsignar(reqId) {
+    let optionsHTML = '<option value="">Seleccioná un técnico...</option>';
+    try {
+        const users = await api('GET', '/usuarios/');
+        const tecnicos = users.filter(u => u.rol === 'tecnico');
+        tecnicos.forEach(t => {
+            optionsHTML += `<option value="${t.id}">${t.nombre} (${t.email})</option>`;
+        });
+    } catch (e) {
+        optionsHTML = '<option value="">Error cargando técnicos</option>';
+    }
+
     openModal(`
         <div class="modal-header">
             <h3><i class="fa-solid fa-user-check"></i> Asignar Técnico de Soporte</h3>
@@ -1902,8 +1913,10 @@ function openModalAsignar(reqId) {
         </div>
         <div class="modal-body">
             <div class="form-group" style="margin:0;">
-                <label>ID del Técnico a Asignar</label>
-                <input type="text" id="input-tecnico-id" placeholder="Ingresá el identificador único del técnico">
+                <label>Técnico a Asignar</label>
+                <select id="input-tecnico-id">
+                    ${optionsHTML}
+                </select>
             </div>
         </div>
         <div class="modal-footer">
@@ -1913,8 +1926,8 @@ function openModalAsignar(reqId) {
     `);
     
     $('btn-confirm-asignar').addEventListener('click', async () => {
-        const tecId = $('input-tecnico-id').value.trim();
-        if (!tecId) { toast('Por favor, ingresá el identificador del técnico.', 'error'); return; }
+        const tecId = $('input-tecnico-id').value;
+        if (!tecId) { toast('Por favor, seleccioná un técnico.', 'error'); return; }
         try {
             await api('POST', `/requerimientos/${reqId}/asignar`, { tecnico_id: tecId });
             toast('Técnico asignado correctamente al caso.');
@@ -1924,7 +1937,18 @@ function openModalAsignar(reqId) {
     });
 }
 
-function openModalDerivar(reqId) {
+async function openModalDerivar(reqId) {
+    let optionsHTML = '<option value="">Seleccioná un técnico...</option>';
+    try {
+        const users = await api('GET', '/usuarios/');
+        const tecnicos = users.filter(u => u.rol === 'tecnico');
+        tecnicos.forEach(t => {
+            optionsHTML += `<option value="${t.id}">${t.nombre} (${t.email})</option>`;
+        });
+    } catch (e) {
+        optionsHTML = '<option value="">Error cargando técnicos</option>';
+    }
+
     openModal(`
         <div class="modal-header">
             <h3><i class="fa-solid fa-share-nodes"></i> Derivar Requerimiento</h3>
@@ -1932,8 +1956,10 @@ function openModalDerivar(reqId) {
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label>ID del Técnico de Destino</label>
-                <input type="text" id="input-derivar-tec" placeholder="Ingresá el identificador del nuevo técnico">
+                <label>Técnico de Destino</label>
+                <select id="input-derivar-tec">
+                    ${optionsHTML}
+                </select>
             </div>
             <div class="form-group" style="margin:0;">
                 <label>Motivo de Derivación</label>
@@ -1947,7 +1973,7 @@ function openModalDerivar(reqId) {
     `);
     
     $('btn-confirm-derivar').addEventListener('click', async () => {
-        const tec = $('input-derivar-tec').value.trim();
+        const tec = $('input-derivar-tec').value;
         const motivo = $('input-derivar-motivo').value.trim();
         if (!tec || !motivo) { toast('Completá todos los campos requeridos.', 'error'); return; }
         try {

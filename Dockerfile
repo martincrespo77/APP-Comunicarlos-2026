@@ -44,7 +44,8 @@ COPY app/ ./app/
 COPY main.py ./
 
 # Copiar archivos estáticos (portal, UML) y docs si fueron generados
-COPY static/ ./static/
+# COPY static/ ./static/
+COPY frontend/ ./frontend/
 COPY docs/ ./docs/
 
 # El venv se activa poniendo su bin/ primero en PATH

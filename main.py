@@ -125,7 +125,7 @@ if os.path.isdir(_docs_html_dir):
     )
 
 # Frontend (SPA) — debe ir después de /uml y /documentacion
-_app_dir = os.path.join(_static_dir, "app")
+_app_dir = os.path.join(_root, "frontend")
 if os.path.isdir(_app_dir):
     app.mount("/app", StaticFiles(directory=_app_dir, html=True), name="frontend")
 

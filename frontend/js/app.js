@@ -1,17 +1,45 @@
 const API_URL = "http://localhost:8000";
 
+let authToken = null;
+
 // Cargar usuarios al iniciar la página
 document.addEventListener("DOMContentLoaded", () => {
     loadUsers();
 });
 
+async function authenticate() {
+    try {
+        const response = await fetch(`${API_URL}/usuarios/autenticar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: "supervisor@test.com", password: "Test1234" })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            authToken = data.access_token;
+        } else {
+            console.error("Error autenticando", await response.text());
+        }
+    } catch (error) {
+        console.error("Error de red en autenticación", error);
+    }
+}
+
 async function loadUsers() {
     const tbody = document.getElementById("users-table-body");
     tbody.innerHTML = '<tr><td colspan="4" class="text-center">Cargando datos desde FastAPI...</td></tr>';
     
+    if (!authToken) {
+        await authenticate();
+    }
+    
     try {
-        const response = await fetch(`${API_URL}/users/`);
-        if (!response.ok) throw new Error("Error en la red");
+        const response = await fetch(`${API_URL}/usuarios/`, {
+            headers: {
+                "Authorization": `Bearer ${authToken}`
+            }
+        });
+        if (!response.ok) throw new Error(`Error en la red: ${response.status}`);
         
         const users = await response.json();
         
@@ -25,9 +53,9 @@ async function loadUsers() {
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td><code>${user.id}</code></td>
-                <td>${user.name}</td>
+                <td>${user.nombre}</td>
                 <td>${user.email}</td>
-                <td><span class="badge badge-success">${user.role}</span></td>
+                <td><span class="badge badge-success">${user.rol}</span></td>
             `;
             tbody.appendChild(tr);
         });
@@ -47,13 +75,14 @@ async function createUser() {
     }
 
     const payload = {
-        name: name,
+        nombre: name,
         email: email,
-        role: "user"
+        rol: "solicitante",
+        password: "Test1234"
     };
 
     try {
-        const response = await fetch(`${API_URL}/users/`, {
+        const response = await fetch(`${API_URL}/usuarios/`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

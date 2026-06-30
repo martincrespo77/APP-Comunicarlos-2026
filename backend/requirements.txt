@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-motor
-beanie
-pydantic
-pytest
-pytest-asyncio
-httpx
